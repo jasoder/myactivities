@@ -1,0 +1,2 @@
+## Architecture
+- FastAPI + SQLAlchemy
