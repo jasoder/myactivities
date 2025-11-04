@@ -1,11 +1,11 @@
 from typing import Optional
 from datetime import datetime, timezone
+import uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, Float, DateTime, Boolean, Enum, ForeignKey
-from models.completed_activity import CompletedActivity
-from models.athlete import Athlete
+from app.models.athlete import Athlete
 from app.db.base import Base
-from enums import ActivityType, ActivityGoal
+from app.enums import ActivityType, ActivityGoal
 
 class PlannedActivity(Base):
     __tablename__ = "planned_activities"
@@ -24,12 +24,13 @@ class PlannedActivity(Base):
     scheduled_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    linked_activity_id: Mapped[Optional[int]] = mapped_column(ForeignKey("completed_activity.id"), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc)
     )
 
-    user: Mapped["Athlete"] = relationship(back_populates="planned_activities")
-    linked_activity: Mapped[Optional["CompletedActivity"]] = relationship()
+    user: Mapped["Athlete"] = relationship("Athlete", back_populates="planned_activities")
+    linked_activity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("completed_activities.id"), nullable=True
+    )

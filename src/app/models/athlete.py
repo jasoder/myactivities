@@ -2,10 +2,12 @@ from sqlalchemy import String, Integer, Float, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, timezone
 from app.db.base import Base
-from app.models.completed_activity import CompletedActivity
-from app.models.planned_activity import PlannedActivity
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from app.models.completed_activity import CompletedActivity
+    from app.models.planned_activity import PlannedActivity
+    
 class Athlete(Base):
     __tablename__ = "athletes"
 
@@ -45,8 +47,8 @@ class Athlete(Base):
 
     # Relationships
     completed_activities: Mapped[list["CompletedActivity"]] = relationship(
-        back_populates="athlete", cascade="all, delete"
+        "CompletedActivity", back_populates="athlete", cascade="all, delete"
     )
     planned_activities: Mapped[list["PlannedActivity"]] = relationship(
-        back_populates="athlete", cascade="all, delete"
+        "PlannedActivity", back_populates="athlete", cascade="all, delete"
     )
