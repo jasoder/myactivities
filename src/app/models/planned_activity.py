@@ -1,17 +1,35 @@
+from __future__ import annotations
+
 from typing import Optional
 from datetime import datetime, timezone
 import uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import String, Integer, Float, DateTime, Boolean, Enum, ForeignKey
-from app.models.athlete import Athlete
+
 from app.db.base import Base
 from app.enums import ActivityType, ActivityGoal
+from app.models.completed_activity import CompletedActivity
+from app.models.athlete import Athlete
+
 
 class PlannedActivity(Base):
     __tablename__ = "planned_activities"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id", ondelete="CASCADE"))
+    athlete: Mapped["Athlete"] = relationship("Athlete", back_populates="planned_activities")
+    
+    linked_activity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("completed_activities.id"), nullable=True
+    )
+
+    linked_activity: Mapped[Optional["CompletedActivity"]] = relationship(
+        "CompletedActivity",
+        foreign_keys=[linked_activity_id],
+    )
     
     name: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[ActivityType] = mapped_column(Enum(ActivityType), nullable=False)
@@ -30,7 +48,5 @@ class PlannedActivity(Base):
         default=lambda: datetime.now(timezone.utc)
     )
 
-    user: Mapped["Athlete"] = relationship("Athlete", back_populates="planned_activities")
-    linked_activity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("completed_activities.id"), nullable=True
-    )
+    def __repr__(self) -> str:
+        return f"<PlannedActivity(id={self.id}, name='{self.name}', type={self.type}, date={self.scheduled_date})>"

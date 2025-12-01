@@ -5,10 +5,12 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, Enum, func
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, Enum, func, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.models.athlete import Athlete
 from app.db.base import Base
+
 
 class ActivitySource(enum.Enum):
     STRAVA = "strava"
@@ -20,13 +22,15 @@ class CompletedActivity(Base):
 
     # Core identifiers
     id: Mapped[uuid.UUID] = mapped_column(
-        PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    
+    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id", ondelete="CASCADE"))
+    athlete: Mapped["Athlete"] = relationship("Athlete", back_populates="completed_activities")
     external_id: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True)
     strava_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
     intervals_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
     source: Mapped[ActivitySource] = mapped_column(Enum(ActivitySource), nullable=False)
-    athlete_id: Mapped[str] = mapped_column(String, index=True)
 
     # Metadata
     name: Mapped[Optional[str]] = mapped_column(String)
@@ -68,15 +72,6 @@ class CompletedActivity(Base):
     icu_variability_index: Mapped[Optional[float]] = mapped_column(Float)
     icu_joules: Mapped[Optional[float]] = mapped_column(Float)
     icu_rpe: Mapped[Optional[float]] = mapped_column(Float)
-    # icu_feel: Mapped[Optional[float]] = mapped_column(Float)
-
-    # Location & route
-    # start_lat: Mapped[Optional[float]] = mapped_column(Float)
-    # start_lng: Mapped[Optional[float]] = mapped_column(Float)
-    # end_lat: Mapped[Optional[float]] = mapped_column(Float)
-    # end_lng: Mapped[Optional[float]] = mapped_column(Float)
-    # polyline: Mapped[Optional[str]] = mapped_column(Text)
-    # route_id: Mapped[Optional[str]] = mapped_column(String)
 
     # Device & gear
     device_name: Mapped[Optional[str]] = mapped_column(String)
@@ -101,4 +96,7 @@ class CompletedActivity(Base):
     intervals_url: Mapped[Optional[str]] = mapped_column(String)
 
     def __repr__(self) -> str:
-        return f"<CompletedActivity(id={self.id}, source={self.source}, sport={self.sport_type}, date={self.start_date_local})>"
+        return (
+            f"<CompletedActivity(id={self.id}, source={self.source}, "
+            f"sport={self.sport_type}, date={self.start_date_local})>"
+        )
