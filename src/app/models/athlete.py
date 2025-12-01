@@ -1,8 +1,11 @@
 from sqlalchemy import String, Integer, Float, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
 from app.db.base import Base
 from typing import Optional, TYPE_CHECKING
+import uuid
+from sqlalchemy.dialects.postgresql import UUID
 
 if TYPE_CHECKING:
     from app.models.completed_activity import CompletedActivity
@@ -11,7 +14,9 @@ if TYPE_CHECKING:
 class Athlete(Base):
     __tablename__ = "athletes"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
@@ -30,7 +35,7 @@ class Athlete(Base):
     token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     # Preferences
-    preferred_sport: Mapped[Optional[str]] = mapped_column(String)
+    preferred_sports: Mapped[Optional[list[str]]] = mapped_column(JSONB)
     timezone: Mapped[Optional[str]] = mapped_column(String, default="UTC")
     weekly_training_hours: Mapped[Optional[float]] = mapped_column(Float)
     ai_enabled: Mapped[bool] = mapped_column(default=True)
