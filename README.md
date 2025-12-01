@@ -1,2 +1,6 @@
 ## Architecture
-- FastAPI + SQLAlchemy
+- FastAPI
+- SQLAlchemy
+- PostgreSQL
+- Docker
+- React
