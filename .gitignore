@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Environment Variables (Keep your secrets safe!)
+.env
+
+# IDE settings (VS Code, PyCharm, etc.)
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Testing / Coverage
+.coverage
+htmlcov/
+.pytest_cache/
