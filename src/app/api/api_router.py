@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 from app.schemas.errors import ErrorResponse
-from app.api.routes import athletes, completed_activities, planned_activities
+from app.api.routers import athletes, completed_activities, planned_activities
 
 api_router = APIRouter(
     default_response_class=JSONResponse,
