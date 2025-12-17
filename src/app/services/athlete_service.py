@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import select
+from sqlalchemy import select, delete, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.athlete import Athlete
 from app.schemas.athlete import AthleteCreate, AthleteUpdate
@@ -25,3 +25,13 @@ async def update_existing_athlete(db: AsyncSession, athlete: Athlete, athlete_in
     await db.refresh(athlete)
     
     return athlete
+
+async def delete_athlete_by_id(db: AsyncSession, athlete_id: uuid.UUID) -> bool:
+    stmt = select(exists().where(Athlete.id == athlete_id))
+    result = await db.execute(stmt)
+    if not result.scalar():
+        return False
+
+    await db.execute(delete(Athlete).where(Athlete.id == athlete_id))
+    await db.commit()
+    return True
