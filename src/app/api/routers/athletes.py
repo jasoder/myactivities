@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from app.schemas.athlete import AthleteCreate, AthleteUpdate, AthleteRead
+from app.schemas.athlete import AthleteCreate, AthleteUpdate, AthleteRead, AthleteCreateResponse
 from app.services import athlete_service
 import uuid
 
@@ -17,7 +17,7 @@ async def get_athlete(athlete_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     return athlete
 
 
-@router.post("/", response_model=AthleteRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=AthleteCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_athlete(athlete_in: AthleteCreate, db: AsyncSession = Depends(get_db)):
     return await athlete_service.create_new_athlete(db, athlete_in)
 
