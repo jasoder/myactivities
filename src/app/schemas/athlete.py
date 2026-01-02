@@ -55,3 +55,10 @@ class AthleteRead(AthleteBase):
 
     class Config:
         from_attributes = True
+        
+        
+class AthleteCreateResponse(BaseModel):
+    id: UUID
+
+    class Config:
+        from_attributes = True

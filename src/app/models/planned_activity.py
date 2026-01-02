@@ -19,9 +19,11 @@ class PlannedActivity(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id", ondelete="CASCADE"))
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("athletes.id", ondelete="CASCADE")
+    )
     athlete: Mapped["Athlete"] = relationship("Athlete", back_populates="planned_activities")
-    
+
     linked_activity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("completed_activities.id"), nullable=True
     )
