@@ -47,10 +47,19 @@ async def test_planned_activity_create_mocked():
         with patch("app.services.planned_activity_service.create_planned_activity") as mock_create:
             activity_id, athlete_id = uuid.uuid4(), uuid.uuid4()
             mock_create.return_value = mock_obj(
-                id=activity_id, athlete_id=athlete_id, name="Test", type="Ride",
-                goal=None, zone=None, target_duration=None, target_distance=None,
-                target_intensity=None, scheduled_date=datetime.now(timezone.utc),
-                completed=False, linked_activity_id=None, created_at=datetime.now(timezone.utc)
+                id=activity_id,
+                athlete_id=athlete_id,
+                name="Test",
+                type="Ride",
+                goal=None,
+                zone=None,
+                target_duration=None,
+                target_distance=None,
+                target_intensity=None,
+                scheduled_date=datetime.now(timezone.utc),
+                completed=False,
+                linked_activity_id=None,
+                created_at=datetime.now(timezone.utc),
             )
 
             payload = {
@@ -67,12 +76,23 @@ async def test_planned_activity_get_by_athlete_mocked():
     async with mock_app() as client:
         athlete_id, activity_id = uuid.uuid4(), uuid.uuid4()
         with patch("app.services.planned_activity_service.get_planned_activities_by_athlete") as mock_get:
-            mock_get.return_value = [mock_obj(
-                id=activity_id, athlete_id=athlete_id, name="Test", type="Ride",
-                goal=None, zone=None, target_duration=None, target_distance=None,
-                target_intensity=None, scheduled_date=datetime.now(timezone.utc),
-                completed=False, linked_activity_id=None, created_at=datetime.now(timezone.utc)
-            )]
+            mock_get.return_value = [
+                mock_obj(
+                    id=activity_id,
+                    athlete_id=athlete_id,
+                    name="Test",
+                    type="Ride",
+                    goal=None,
+                    zone=None,
+                    target_duration=None,
+                    target_distance=None,
+                    target_intensity=None,
+                    scheduled_date=datetime.now(timezone.utc),
+                    completed=False,
+                    linked_activity_id=None,
+                    created_at=datetime.now(timezone.utc),
+                )
+            ]
 
             r = await client.get(f"/myactivities/plannedworkouts/athlete/{athlete_id}")
             assert r.status_code == 200
@@ -86,10 +106,19 @@ async def test_planned_activity_update_mocked():
         with patch("app.services.planned_activity_service.get_planned_activity_by_id") as mock_get, \
              patch("app.services.planned_activity_service.update_planned_activity") as mock_update:
             mock_activity = mock_obj(
-                id=activity_id, athlete_id=uuid.uuid4(), name="Updated", type="Ride",
-                goal=None, zone=None, target_duration=None, target_distance=None,
-                target_intensity=None, scheduled_date=datetime.now(timezone.utc),
-                completed=False, linked_activity_id=None, created_at=datetime.now(timezone.utc)
+                id=activity_id,
+                athlete_id=uuid.uuid4(),
+                name="Updated",
+                type="Ride",
+                goal=None,
+                zone=None,
+                target_duration=None,
+                target_distance=None,
+                target_intensity=None,
+                scheduled_date=datetime.now(timezone.utc),
+                completed=False,
+                linked_activity_id=None,
+                created_at=datetime.now(timezone.utc),
             )
             mock_get.return_value = mock_activity
             mock_update.return_value = mock_activity
@@ -105,7 +134,9 @@ async def test_planned_activity_delete_mocked():
         activity_id = uuid.uuid4()
         with patch("app.services.planned_activity_service.get_planned_activity_by_id") as mock_get, \
              patch("app.services.planned_activity_service.delete_planned_activity") as mock_delete:
-            mock_get.return_value = mock_obj(id=activity_id)
+            mock_get.return_value = mock_obj(
+                id=activity_id,
+            )
             mock_delete.return_value = None
 
             r = await client.delete(f"/myactivities/plannedworkouts/{activity_id}")
