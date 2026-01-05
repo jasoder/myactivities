@@ -25,7 +25,9 @@ class CompletedActivity(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     
-    athlete_id: Mapped[int] = mapped_column(ForeignKey("athletes.id", ondelete="CASCADE"))
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("athletes.id", ondelete="CASCADE")
+    )
     athlete: Mapped["Athlete"] = relationship("Athlete", back_populates="completed_activities")
     external_id: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True)
     strava_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
