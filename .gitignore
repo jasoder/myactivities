@@ -1,29 +1,161 @@
-# Python
+# Core Python & Compiled
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
 
-# Virtual Environment
+# Distribution / Packaging
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Environments (Virtual Envs & Secrets)
 venv/
 .venv/
 env/
-
-# Environment Variables (Keep your secrets safe!)
+ENV/
+env.bak/
+venv.bak/
 .env
+.envrc
 
-# IDE settings (VS Code, PyCharm, etc.)
-.vscode/
-.idea/
+# PEP 582
+__pypackages__/
+
+# Testing & Code Quality
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Type Checking & Linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
 
 # macOS
 .DS_Store
 
-# Distribution / Packaging
-dist/
-build/
-*.egg-info/
+# IDE Settings
+.vscode/
+.idea/
+.spyderproject
+.spyproject
+.ropeproject
 
-# Testing / Coverage
-.coverage
-htmlcov/
-.pytest_cache/
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask
+instance/
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Jupyter / IPython
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# Marimo
+marimo/_static/
+marimo/_lsp/
+__marimo__/
+
+# SageMath
+*.sage.py
+
+# Documentation (Sphinx / MkDocs)
+docs/_build/
+/site
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Cython
+cython_debug/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis
+*.rdb
+*.aof
+*.pid
+
+# RabbitMQ / ActiveMQ
+mnesia/
+rabbitmq/
+rabbitmq-data/
+activemq-data/
+
+# Translations
+*.mo
+*.pot
+
+# PyPI config
+.pypirc
+
+# pdm
+.pdm-python
+.pdm-build/
+
+# pixi
+.pixi
+
+# Abstra
+.abstra/
+
+# Dependency Lock Files
+# (Comment out if you want to track these)
+# .python-version
+# Pipfile.lock
+# uv.lock
+# poetry.lock
+# poetry.toml
+# pdm.lock
+# pdm.toml
+# pixi.lock
