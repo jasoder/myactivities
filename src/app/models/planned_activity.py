@@ -25,7 +25,7 @@ class PlannedActivity(Base):
     athlete: Mapped["Athlete"] = relationship("Athlete", back_populates="planned_activities")
 
     linked_activity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("completed_activities.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("completed_activities.id"), nullable=True
     )
 
     linked_activity: Mapped[Optional["CompletedActivity"]] = relationship(
