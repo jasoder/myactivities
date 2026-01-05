@@ -46,7 +46,10 @@ async def test_athlete_create_mocked():
     async with mock_app() as client:
         with patch("app.services.athlete_service.create_new_athlete") as mock_create:
             test_id = uuid.uuid4()
-            mock_create.return_value = mock_obj(id=test_id, email="test@example.com")
+            mock_create.return_value = mock_obj(
+                id=test_id,
+                email="test@example.com",
+            )
 
             r = await client.post("/myactivities/athletes/", json={"email": "test@example.com", "name": "Test"})
             assert r.status_code == 201
@@ -59,11 +62,25 @@ async def test_athlete_get_mocked():
         test_id = uuid.uuid4()
         with patch("app.services.athlete_service.get_athlete_by_id") as mock_get:
             mock_get.return_value = mock_obj(
-                id=test_id, email="test@example.com", name="Test",
-                ftp=None, threshold_pace=None, weight=None, max_hr=None, lthr=None,
-                strava_id=None, intervals_icu_id=None, access_token=None, refresh_token=None,
-                token_expires_at=None, preferred_sports=None, timezone="UTC", weekly_training_hours=None,
-                ai_enabled=True, created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)
+                id=test_id,
+                email="test@example.com",
+                name="Test",
+                ftp=None,
+                threshold_pace=None,
+                weight=None,
+                max_hr=None,
+                lthr=None,
+                strava_id=None,
+                intervals_icu_id=None,
+                access_token=None,
+                refresh_token=None,
+                token_expires_at=None,
+                preferred_sports=None,
+                timezone="UTC",
+                weekly_training_hours=None,
+                ai_enabled=True, 
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
 
             r = await client.get(f"/myactivities/athletes/{test_id}")

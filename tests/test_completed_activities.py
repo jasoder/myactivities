@@ -47,9 +47,14 @@ async def test_completed_activity_create_mocked():
         with patch("app.services.completed_activity_service.create_completed_activity") as mock_create:
             activity_id, athlete_id = uuid.uuid4(), uuid.uuid4()
             mock_create.return_value = mock_obj(
-                id=activity_id, athlete_id=athlete_id, name="Completed", source="strava",
-                external_id=None, sport_type="Ride", start_date_local=None,
-                created_at=datetime.now(timezone.utc)
+                id=activity_id,
+                athlete_id=athlete_id,
+                name="Completed",
+                source="strava",
+                external_id=None,
+                sport_type="Ride",
+                start_date_local=None,
+                created_at=datetime.now(timezone.utc),
             )
 
             r = await client.post("/myactivities/completedworkouts/", json={
@@ -64,11 +69,18 @@ async def test_completed_activity_get_by_athlete_mocked():
     async with mock_app() as client:
         athlete_id, activity_id = uuid.uuid4(), uuid.uuid4()
         with patch("app.services.completed_activity_service.get_completed_activities_by_athlete") as mock_get:
-            mock_get.return_value = [mock_obj(
-                id=activity_id, athlete_id=athlete_id, name="Completed", source="strava",
-                external_id=None, sport_type="Ride", start_date_local=None,
-                created_at=datetime.now(timezone.utc)
-            )]
+            mock_get.return_value = [
+                mock_obj(
+                    id=activity_id,
+                    athlete_id=athlete_id,
+                    name="Completed",
+                    source="strava",
+                    external_id=None,
+                    sport_type="Ride",
+                    start_date_local=None,
+                    created_at=datetime.now(timezone.utc),
+                )
+            ]
 
             r = await client.get(f"/myactivities/completedworkouts/athlete/{athlete_id}")
             assert r.status_code == 200
@@ -82,9 +94,14 @@ async def test_completed_activity_update_mocked():
         with patch("app.services.completed_activity_service.get_completed_activity_by_id") as mock_get, \
              patch("app.services.completed_activity_service.update_completed_activity") as mock_update:
             mock_activity = mock_obj(
-                id=activity_id, athlete_id=uuid.uuid4(), name="Updated", source="strava",
-                external_id=None, sport_type="Ride", start_date_local=None,
-                created_at=datetime.now(timezone.utc)
+                id=activity_id,
+                athlete_id=uuid.uuid4(),
+                name="Updated",
+                source="strava",
+                external_id=None,
+                sport_type="Ride",
+                start_date_local=None,
+                created_at=datetime.now(timezone.utc),
             )
             mock_get.return_value = mock_activity
             mock_update.return_value = mock_activity
@@ -100,7 +117,9 @@ async def test_completed_activity_delete_mocked():
         activity_id = uuid.uuid4()
         with patch("app.services.completed_activity_service.get_completed_activity_by_id") as mock_get, \
              patch("app.services.completed_activity_service.delete_completed_activity") as mock_delete:
-            mock_get.return_value = mock_obj(id=activity_id)
+            mock_get.return_value = mock_obj(
+                id=activity_id,
+            )
             mock_delete.return_value = None
 
             r = await client.delete(f"/myactivities/completedworkouts/{activity_id}")

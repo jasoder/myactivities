@@ -12,6 +12,7 @@ async def get_athlete_by_id(db: AsyncSession, athlete_id: uuid.UUID) -> Athlete 
 async def create_new_athlete(db: AsyncSession, athlete_in: AthleteCreate) -> Athlete:
     new_athlete = Athlete(**athlete_in.model_dump())
     db.add(new_athlete)
+    
     await db.commit()
     await db.refresh(new_athlete)
     
