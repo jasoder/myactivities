@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import StrEnum, Enum
 
 class ActivityType(StrEnum):
     ride = "Ride"
@@ -14,3 +14,13 @@ class ActivityGoal(StrEnum):
     vo2max = "VO2 Max"
     intervals = "Intervals"
     long = "Long"
+
+class ActivitySource(Enum):
+    STRAVA = "strava"
+    INTERVALS = "intervals"
+
+class LogLevels(StrEnum):
+    info = "INFO"
+    warn = "WARN"
+    error = "ERROR"
+    debug = "DEBUG"

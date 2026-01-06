@@ -10,11 +10,9 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.athlete import Athlete
 from app.db.base import Base
+from app.enums import ActivitySource
 
 
-class ActivitySource(enum.Enum):
-    STRAVA = "strava"
-    INTERVALS = "intervals"
 
 
 class CompletedActivity(Base):

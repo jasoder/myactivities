@@ -66,7 +66,7 @@ async def test_planned_activity_create_mocked():
                 "athlete_id": str(athlete_id), "name": "Test", "type": "Ride",
                 "scheduled_date": datetime.now(timezone.utc).isoformat()
             }
-            r = await client.post("/myactivities/plannedworkouts/", json=payload)
+            r = await client.post("/myactivities/plannedActivities/", json=payload)
             assert r.status_code == 201
 
 
@@ -94,7 +94,7 @@ async def test_planned_activity_get_by_athlete_mocked():
                 )
             ]
 
-            r = await client.get(f"/myactivities/plannedworkouts/athlete/{athlete_id}")
+            r = await client.get(f"/myactivities/plannedActivities/athlete/{athlete_id}")
             assert r.status_code == 200
 
 
@@ -123,7 +123,7 @@ async def test_planned_activity_update_mocked():
             mock_get.return_value = mock_activity
             mock_update.return_value = mock_activity
 
-            r = await client.put(f"/myactivities/plannedworkouts/{activity_id}", json={"name": "Updated"})
+            r = await client.put(f"/myactivities/plannedActivities/{activity_id}", json={"name": "Updated"})
             assert r.status_code == 200
 
 
@@ -139,5 +139,5 @@ async def test_planned_activity_delete_mocked():
             )
             mock_delete.return_value = None
 
-            r = await client.delete(f"/myactivities/plannedworkouts/{activity_id}")
+            r = await client.delete(f"/myactivities/plannedActivities/{activity_id}")
             assert r.status_code == 204

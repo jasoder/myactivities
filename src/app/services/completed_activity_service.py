@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.completed_activity import CompletedActivity
 from app.schemas.completed_activity import CompletedActivityCreate, CompletedActivityUpdate
+from datetime import datetime
 
 
 async def get_completed_activities_by_athlete(db: AsyncSession, athlete_id: uuid.UUID):
@@ -16,6 +17,19 @@ async def get_completed_activity_by_id(db: AsyncSession, activity_id: uuid.UUID)
         select(CompletedActivity).where(CompletedActivity.id == activity_id)
     )
     return result.scalar_one_or_none()
+
+
+async def get_completed_activities_by_date_range(
+    db: AsyncSession, athlete_id: uuid.UUID, start_date: datetime, end_date: datetime
+):
+    result = await db.execute(
+        select(CompletedActivity).where(
+            CompletedActivity.athlete_id == athlete_id,
+            CompletedActivity.start_date_local >= start_date,
+            CompletedActivity.start_date_local <= end_date,
+        )
+    )
+    return result.scalars().all()
 
 async def create_completed_activity(db: AsyncSession, activity_in: CompletedActivityCreate):
     new_activity = CompletedActivity(**activity_in.model_dump())
