@@ -57,7 +57,7 @@ async def test_completed_activity_create_mocked():
                 created_at=datetime.now(timezone.utc),
             )
 
-            r = await client.post("/myactivities/completedworkouts/", json={
+            r = await client.post("/myactivities/completedActivities/", json={
                 "athlete_id": str(athlete_id), "source": "strava", "name": "Completed"
             })
             assert r.status_code == 201
@@ -82,7 +82,7 @@ async def test_completed_activity_get_by_athlete_mocked():
                 )
             ]
 
-            r = await client.get(f"/myactivities/completedworkouts/athlete/{athlete_id}")
+            r = await client.get(f"/myactivities/completedActivities/athlete/{athlete_id}")
             assert r.status_code == 200
 
 
@@ -106,7 +106,7 @@ async def test_completed_activity_update_mocked():
             mock_get.return_value = mock_activity
             mock_update.return_value = mock_activity
 
-            r = await client.put(f"/myactivities/completedworkouts/{activity_id}", json={"name": "Updated"})
+            r = await client.put(f"/myactivities/completedActivities/{activity_id}", json={"name": "Updated"})
             assert r.status_code == 200
 
 
@@ -122,5 +122,5 @@ async def test_completed_activity_delete_mocked():
             )
             mock_delete.return_value = None
 
-            r = await client.delete(f"/myactivities/completedworkouts/{activity_id}")
+            r = await client.delete(f"/myactivities/completedActivities/{activity_id}")
             assert r.status_code == 204
