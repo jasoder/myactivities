@@ -50,8 +50,8 @@ def mock_obj(**kwargs):
 
 
 @pytest.mark.asyncio
-async def test_get_timeline_for_athlete_with_activities():
-    """Test retrieving a timeline for an athlete with both completed and planned activities."""
+async def test_get_activities_for_athlete_with_activities():
+    """Test retrieving a activities for an athlete with both completed and planned activities."""
     async with mock_app() as client:
 
         mock_planned = [
@@ -142,7 +142,7 @@ async def test_get_timeline_for_athlete_with_activities():
             end_date_str = quote((tomorrow + timedelta(days=1)).isoformat()) # Range covers yesterday, today and tomorrow
 
             response = await client.get(
-                f"/myactivities/timeline/{athlete_id}?start_date={start_date_str}&end_date={end_date_str}"
+                f"/myactivities/activities/{athlete_id}?start_date={start_date_str}&end_date={end_date_str}"
             )
 
             assert response.status_code == 200
@@ -163,8 +163,8 @@ async def test_get_timeline_for_athlete_with_activities():
 
 
 @pytest.mark.asyncio
-async def test_get_timeline_for_athlete_no_activities_in_range():
-    """Test retrieving a timeline for an athlete with no activities within the specified date range."""
+async def test_get_activities_for_athlete_no_activities_in_range():
+    """Test retrieving a activities for an athlete with no activities within the specified date range."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         start_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -179,7 +179,7 @@ async def test_get_timeline_for_athlete_no_activities_in_range():
             mock_get_completed.return_value = []
 
             response = await client.get(
-                f"/myactivities/timeline/{athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
+                f"/myactivities/activities/{athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
             )
 
             assert response.status_code == 200
@@ -188,15 +188,15 @@ async def test_get_timeline_for_athlete_no_activities_in_range():
             assert len(data["events"]) == 0
 
 @pytest.mark.asyncio
-async def test_get_timeline_with_invalid_date_format():
-    """Test retrieving a timeline with invalid date formats."""
+async def test_get_activities_with_invalid_date_format():
+    """Test retrieving a activities with invalid date formats."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         invalid_start_date = "2026-13-01T00:00:00Z" # Invalid month
         valid_end_date = quote(datetime(2026, 1, 7, tzinfo=timezone.utc).isoformat())
 
         response = await client.get(
-            f"/myactivities/timeline/{athlete_id}?start_date={invalid_start_date}&end_date={valid_end_date}"
+            f"/myactivities/activities/{athlete_id}?start_date={invalid_start_date}&end_date={valid_end_date}"
         )
         assert response.status_code == 422 # Unprocessable Entity for Pydantic validation error
         assert "detail" in response.json()
@@ -206,15 +206,15 @@ async def test_get_timeline_with_invalid_date_format():
         invalid_end_date = "not-a-date" # Completely invalid
 
         response = await client.get(
-            f"/myactivities/timeline/{athlete_id}?start_date={valid_start_date}&end_date={invalid_end_date}"
+            f"/myactivities/activities/{athlete_id}?start_date={valid_start_date}&end_date={invalid_end_date}"
         )
         assert response.status_code == 422
         assert "detail" in response.json()
         assert "valid datetime" in response.json()["detail"][0]["msg"].lower()
 
 @pytest.mark.asyncio
-async def test_get_timeline_with_end_date_before_start_date():
-    """Test retrieving a timeline when end_date is before start_date."""
+async def test_get_activities_with_end_date_before_start_date():
+    """Test retrieving a activities when end_date is before start_date."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         start_date = datetime(2026, 1, 7, tzinfo=timezone.utc)
@@ -231,7 +231,7 @@ async def test_get_timeline_with_end_date_before_start_date():
             # The service logic might handle this gracefully and return empty list, 
             # or the validation could be added at the API level (FastAPI will enforce Query params, not their logical order)
             response = await client.get(
-                f"/myactivities/timeline/{athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
+                f"/myactivities/activities/{athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
             )
             assert response.status_code == 200
             data = response.json()
@@ -239,8 +239,8 @@ async def test_get_timeline_with_end_date_before_start_date():
             assert len(data["events"]) == 0
 
 @pytest.mark.asyncio
-async def test_get_timeline_ordering():
-    """Test that timeline events are returned in chronological order."""
+async def test_get_activities_ordering():
+    """Test that activities events are returned in chronological order."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         today_event = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
@@ -387,7 +387,7 @@ async def test_get_timeline_ordering():
             end_date_str = quote((day_plus_2_event + timedelta(days=1)).isoformat())
 
             response = await client.get(
-                f"/myactivities/timeline/{athlete_id}?start_date={start_date_str}&end_date={end_date_str}"
+                f"/myactivities/activities/{athlete_id}?start_date={start_date_str}&end_date={end_date_str}"
             )
 
             assert response.status_code == 200
@@ -407,36 +407,36 @@ async def test_get_timeline_ordering():
 
 
 @pytest.mark.asyncio
-async def test_get_timeline_missing_start_date():
-    """Test retrieving a timeline with a missing start_date query parameter."""
+async def test_get_activities_missing_start_date():
+    """Test retrieving a activities with a missing start_date query parameter."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         end_date = quote(datetime(2026, 1, 7, tzinfo=timezone.utc).isoformat())
 
         response = await client.get(
-            f"/myactivities/timeline/{athlete_id}?end_date={end_date}"
+            f"/myactivities/activities/{athlete_id}?end_date={end_date}"
         )
         assert response.status_code == 422
         assert "detail" in response.json()
         assert "Field required" in response.json()["detail"][0]["msg"]
 
 @pytest.mark.asyncio
-async def test_get_timeline_missing_end_date():
-    """Test retrieving a timeline with a missing end_date query parameter."""
+async def test_get_activities_missing_end_date():
+    """Test retrieving a activities with a missing end_date query parameter."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         start_date = quote(datetime(2026, 1, 1, tzinfo=timezone.utc).isoformat())
 
         response = await client.get(
-            f"/myactivities/timeline/{athlete_id}?start_date={start_date}"
+            f"/myactivities/activities/{athlete_id}?start_date={start_date}"
         )
         assert response.status_code == 422
         assert "detail" in response.json()
         assert "Field required" in response.json()["detail"][0]["msg"]
 
 @pytest.mark.asyncio
-async def test_get_timeline_same_start_end_date():
-    """Test retrieving a timeline where start_date is the same as end_date."""
+async def test_get_activities_same_start_end_date():
+    """Test retrieving a activities where start_date is the same as end_date."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         single_date = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
@@ -474,7 +474,7 @@ async def test_get_timeline_same_start_end_date():
             mock_get_completed.return_value = mock_completed
 
             response = await client.get(
-                f"/myactivities/timeline/{athlete_id}?start_date={quote(single_date.isoformat())}&end_date={quote(single_date.isoformat())}"
+                f"/myactivities/activities/{athlete_id}?start_date={quote(single_date.isoformat())}&end_date={quote(single_date.isoformat())}"
             )
 
             assert response.status_code == 200
@@ -487,8 +487,8 @@ async def test_get_timeline_same_start_end_date():
             assert data["events"][1]["title"] == mock_completed[0].name
 
 @pytest.mark.asyncio
-async def test_get_timeline_only_planned_activities():
-    """Test retrieving a timeline with only planned activities."""
+async def test_get_activities_only_planned_activities():
+    """Test retrieving a activities with only planned activities."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         start_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -514,7 +514,7 @@ async def test_get_timeline_only_planned_activities():
             mock_get_completed.return_value = []
 
             response = await client.get(
-                f"/myactivities/timeline/{athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
+                f"/myactivities/activities/{athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
             )
 
             assert response.status_code == 200
@@ -525,8 +525,8 @@ async def test_get_timeline_only_planned_activities():
             assert data["events"][0]["status"] == "planned"
 
 @pytest.mark.asyncio
-async def test_get_timeline_only_completed_activities():
-    """Test retrieving a timeline with only completed activities."""
+async def test_get_activities_only_completed_activities():
+    """Test retrieving a activities with only completed activities."""
     async with mock_app() as client:
         athlete_id = uuid.uuid4()
         start_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -553,7 +553,7 @@ async def test_get_timeline_only_completed_activities():
             mock_get_completed.return_value = mock_completed
 
             response = await client.get(
-                f"/myactivities/timeline/{athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
+                f"/myactivities/activities/{athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
             )
 
             assert response.status_code == 200
