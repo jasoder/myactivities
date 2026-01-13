@@ -1,10 +1,10 @@
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services import planned_activity_service, completed_activity_service
-from app.schemas.timeline import TimelineEntry, TimelineSummary
+from app.schemas.activities import ActivitiesEntry, ActivitiesSummary
 
 
-async def get_timeline_events(
+async def get_activities_events(
     db: AsyncSession, athlete_id, start_date: datetime, end_date: datetime
 ):
     planned = await planned_activity_service.get_planned_activities_by_date_range(
@@ -19,13 +19,13 @@ async def get_timeline_events(
     for p in planned:
         status = "completed" if p.completed else "planned"
         events.append(
-            TimelineEntry(
+            ActivitiesEntry(
                 id=p.id,
                 date=p.scheduled_date,
                 title=p.name,
                 type=p.type,
                 status=status,
-                data=TimelineSummary(
+                data=ActivitiesSummary(
                     distance_m=p.target_distance,
                     duration_s=p.target_duration,
                     training_load=p.target_intensity,
@@ -38,13 +38,13 @@ async def get_timeline_events(
         if date_val is None:
             continue
         events.append(
-            TimelineEntry(
+            ActivitiesEntry(
                 id=c.id,
                 date=date_val,
                 title=c.name,
                 type=c.sport_type,
                 status="completed",
-                data=TimelineSummary(
+                data=ActivitiesSummary(
                     distance_m=c.distance_m,
                     duration_s=c.moving_time_s,
                     training_load=c.icu_training_load,

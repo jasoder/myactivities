@@ -3,18 +3,18 @@ from datetime import datetime
 from uuid import UUID
 from typing import Optional, Literal
 
-class TimelineSummary(BaseModel):
+class ActivitiesSummary(BaseModel):
     distance_m: Optional[float] = None
     duration_s: Optional[int] = None
     training_load: Optional[float] = None
 
-class TimelineEntry(BaseModel):
+class ActivitiesEntry(BaseModel):
     id: UUID
     date: datetime
     title: Optional[str] = "Untitled Activity"
     type: Optional[str] = "Other"
     status: Literal["planned", "completed", "missed"]
-    data: TimelineSummary
+    data: ActivitiesSummary
 
-class TimelineResponse(BaseModel):
-    events: list[TimelineEntry]
+class ActivitiesResponse(BaseModel):
+    events: list[ActivitiesEntry]
