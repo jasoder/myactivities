@@ -4,6 +4,32 @@ from app.services import planned_activity_service, completed_activity_service
 from app.schemas.activities import ActivitiesEntry, ActivitiesSummary
 
 
+def _build_activities_entry(
+    *,
+    id,
+    date: datetime,
+    title: str,
+    type: str,
+    status: str,
+    distance_m,
+    duration_s,
+    training_load,
+) -> ActivitiesEntry:
+    """Factory function to build ActivitiesEntry with ActivitiesSummary."""
+    return ActivitiesEntry(
+        id=id,
+        date=date,
+        title=title,
+        type=type,
+        status=status,
+        data=ActivitiesSummary(
+            distance_m=distance_m,
+            duration_s=duration_s,
+            training_load=training_load,
+        ),
+    )
+
+
 async def get_activities_events(
     db: AsyncSession, athlete_id, start_date: datetime, end_date: datetime
 ):
@@ -19,17 +45,15 @@ async def get_activities_events(
     for p in planned:
         status = "completed" if p.completed else "planned"
         events.append(
-            ActivitiesEntry(
+            _build_activities_entry(
                 id=p.id,
                 date=p.scheduled_date,
                 title=p.name,
                 type=p.type,
                 status=status,
-                data=ActivitiesSummary(
-                    distance_m=p.target_distance,
-                    duration_s=p.target_duration,
-                    training_load=p.target_intensity,
-                ),
+                distance_m=p.target_distance,
+                duration_s=p.target_duration,
+                training_load=p.target_intensity,
             )
         )
 
@@ -38,17 +62,15 @@ async def get_activities_events(
         if date_val is None:
             continue
         events.append(
-            ActivitiesEntry(
+            _build_activities_entry(
                 id=c.id,
                 date=date_val,
                 title=c.name,
                 type=c.sport_type,
                 status="completed",
-                data=ActivitiesSummary(
-                    distance_m=c.distance_m,
-                    duration_s=c.moving_time_s,
-                    training_load=c.icu_training_load,
-                ),
+                distance_m=c.distance_m,
+                duration_s=c.moving_time_s,
+                training_load=c.icu_training_load,
             )
         )
 
