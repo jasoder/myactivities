@@ -3,13 +3,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
 from app.db.base import Base
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, List
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
 
 if TYPE_CHECKING:
     from app.models.completed_activity import CompletedActivity
     from app.models.planned_activity import PlannedActivity
+    from app.models.activities import Activity, WeekPlan, TrainingPreference
     
 class Athlete(Base):
     __tablename__ = "athletes"
@@ -50,7 +51,18 @@ class Athlete(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    # Relationships
+    # Relationships - New unified Activity model
+    activities: Mapped[List["Activity"]] = relationship(
+        "Activity", back_populates="athlete", cascade="all, delete-orphan"
+    )
+    week_plans: Mapped[List["WeekPlan"]] = relationship(
+        "WeekPlan", back_populates="athlete", cascade="all, delete-orphan"
+    )
+    training_preferences: Mapped["TrainingPreference"] = relationship(
+        "TrainingPreference", back_populates="athlete", uselist=False, cascade="all, delete-orphan"
+    )
+
+    # Legacy relationships (kept for backward compatibility)
     completed_activities: Mapped[list["CompletedActivity"]] = relationship(
         "CompletedActivity", back_populates="athlete", cascade="all, delete"
     )

@@ -2,7 +2,7 @@ import asyncio
 from app.db.base import Base, engine
 
 # Import models here so SQLAlchemy knows about them
-from app.models import athlete, completed_activity, planned_activity
+from app.models import athlete, completed_activity, planned_activity, activities
 
 async def init_db():
     async with engine.begin() as conn:

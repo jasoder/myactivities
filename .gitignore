@@ -159,3 +159,6 @@ activemq-data/
 # pdm.lock
 # pdm.toml
 # pixi.lock
+
+# claude
+.claude/
