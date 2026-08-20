@@ -27,14 +27,33 @@ async def strava_oauth_callback(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/sync/latest/{athlete_id}")
-async def sync_latest_strava_activity(athlete_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    """Sync the latest activity from Strava for an athlete."""
+@router.post("/sync")
+async def sync_strava_activities(
+    athlete_id: str = Query(..., description="Athlete ID"),
+    force: bool = Query(False, description="Force full sync ignoring last sync time"),
+    limit: int = Query(50, description="Maximum number of activities to sync"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Sync Strava activities for an athlete.
+
+    Called by frontend on calendar mount to refresh activities.
+    If force=false (default), only syncs activities since last sync.
+    If force=true, does a full sync of all activities.
+    """
     try:
-        result = await service.sync_strava_latest_activity(str(athlete_id), db)
-        if result:
-            return {"message": "Activity synced successfully", "activity": result}
-        else:
-            return {"message": "No new activities to sync"}
+        # Import here to avoid circular imports
+        from app.services.strava_sync_service import sync_athlete_activities
+
+        result = await sync_athlete_activities(athlete_id, db, force=force, limit=limit)
+        return {
+            "message": "Sync completed",
+            "processed": result.get("processed", 0),
+            "new": result.get("new", 0),
+            "skipped": result.get("skipped", 0),
+            "last_synced_at": result.get("last_synced_at")
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")

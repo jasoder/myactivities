@@ -7,74 +7,73 @@ A FastAPI backend for tracking athlete activities with Strava integration.
 - **FastAPI** - Modern, fast web framework
 - **SQLAlchemy** - Async ORM for database operations
 - **PostgreSQL** - Primary database
-- **Docker** - Containerized database
+- **Docker** - Containerized database and application
 - **React** - Frontend (separate repo)
 
 ## Quick Start
 
 ### Prerequisites
-- Python 3.11+
-- Docker (for PostgreSQL)
-- Virtual environment recommended
 
-### Setup
+- Docker and Docker Compose installed
+- Python 3.11+ (for local development only)
 
-1. **Clone and navigate to project:**
+### Run with Docker Compose (Recommended)
+
+This starts PostgreSQL, initializes the database schema, and runs the API in a single command:
+
+```bash
+docker compose up --build -d
+```
+
+The API will be available at `http://localhost:8000` (docs at `/docs`).
+
+To run in the background:
+
+```bash
+docker compose up -d
+```
+
+To stop and remove the containers (the database volume persists):
+
+```bash
+docker compose down
+```
+
+### Local Development (without Docker)
+
+If you prefer to run locally:
+
+1. **Start PostgreSQL:**
    ```bash
-   cd myactivities
-   ```
-
-2. **Start PostgreSQL via Docker (creates postgres superuser automatically):**
-   ```bash
-   # Stop any existing container
-   docker stop pg-db 2>/dev/null || true
-   docker rm pg-db 2>/dev/null || true
-   
-   # Start fresh container with proper initialization
    docker run -d \
      -e POSTGRES_USER=postgres \
      -e POSTGRES_PASSWORD=myactivities \
      -e POSTGRES_DB=myactivities-test \
      -p 5432:5432 \
      --name pg-db \
-     postgres:18
-   
-   # Wait for PostgreSQL to fully initialize
-   sleep 5
+     postgres:14
    ```
 
-3. **Verify database roles are created (run these to confirm):**
+2. **Install dependencies:**
    ```bash
-   docker exec pg-db psql -U postgres -c "\du"
-   ```
-
-4. **Activate virtual environment and install dependencies:**
-   ```bash
-   source .venv_ci/bin/activate
    pip install -r requirements.txt
    ```
 
-5. **Run database migrations (creates tables):**
+3. **Initialize the database:**
    ```bash
-   python -m src.scripts.init_db
+   python -m src.app.db.manage
    ```
 
-6. **Start the development server:**
+4. **Start the development server:**
    ```bash
    cd src
-   source ../.venv_ci/bin/activate
    uvicorn app.main:app --reload
    ```
-
-7. **Verify the server is running:**
-   - Open http://127.0.0.1:8000 in browser
-   - API docs available at http://127.0.0.1:8000/docs
 
 ### Running Tests
 
 ```bash
-source .venv_ci/bin/activate
-pytest -v
+pytest
 ```
 
 ### Project Structure
@@ -87,16 +86,12 @@ src/
 │   │   ├── api_router.py    # Main router
 │   │   └── routers/         # API endpoints
 │   ├── db/
-│   │   ├── session.py       # Database session management
 │   │   ├── base.py          # SQLAlchemy base
-│   │   └── manage.py        # Database management
+│   │   └── manage.py        # Database initialization
 │   ├── models/              # SQLAlchemy models
 │   ├── schemas/             # Pydantic schemas
 │   ├── services/            # Business logic
 │   └── integrations/        # External integrations (Strava)
-├── scripts/
-│   ├── init_db.py           # Database initialization
-│   └── seed_db.py           # Seed data
 ```
 
 ### API Endpoints
@@ -111,31 +106,9 @@ src/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `postgresql+psycopg2://myactivities:myactivities@localhost:5432/myactivities-test` | Database connection string |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:myactivities@db:5432/myactivities-test` | Database connection string |
 | `STRAVA_CLIENT_ID` | - | Strava OAuth client ID |
 | `STRAVA_CLIENT_SECRET` | - | Strava OAuth client secret |
-
-### Docker Compose (Alternative)
-
-```yaml
-version: '3.8'
-services:
-  db:
-    image: postgres:18
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: myactivities
-      POSTGRES_DB: myactivities-test
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
-```
-
-Run with: `docker-compose up -d`
 
 ## License
 
