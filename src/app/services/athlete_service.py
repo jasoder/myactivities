@@ -27,12 +27,37 @@ async def update_existing_athlete(db: AsyncSession, athlete: Athlete, athlete_in
     
     return athlete
 
-async def delete_athlete_by_id(db: AsyncSession, athlete_id: uuid.UUID) -> bool:
-    stmt = select(exists().where(Athlete.id == athlete_id))
-    result = await db.execute(stmt)
-    if not result.scalar():
-        return False
+async def handle_strava_oauth_callback(
+    db: AsyncSession, athlete_id: uuid.UUID, code: str
+) -> dict:
+    import os
+    from datetime import datetime, timezone
+    from app.integrations.strava.client import StravaClient
 
-    await db.execute(delete(Athlete).where(Athlete.id == athlete_id))
+    client_id = os.getenv("STRAVA_CLIENT_ID")
+    client_secret = os.getenv("STRAVA_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise ValueError("STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET environment variables not set")
+
+    token_data = await StravaClient.exchange_code_for_token(code, client_id, client_secret)
+
+    async with StravaClient(token_data["access_token"]) as client:
+        athlete_data = await client.get_athlete()
+
+    athlete = await get_athlete_by_id(db, athlete_id)
+    if not athlete:
+        raise ValueError("Athlete not found")
+
+    athlete.strava_id = str(athlete_data["id"])
+    athlete.access_token = token_data["access_token"]
+    athlete.refresh_token = token_data.get("refresh_token")
+    athlete.token_expires_at = datetime.fromtimestamp(token_data["expires_at"], tz=timezone.utc)
+
     await db.commit()
-    return True
+    await db.refresh(athlete)
+
+    return {
+        "strava_id": athlete.strava_id,
+        "athlete_name": athlete_data.get("firstname", "") + " " + athlete_data.get("lastname", ""),
+        "connected": True,
+    }

@@ -142,6 +142,7 @@ async def _upsert_strava_activity(
     duration_min = (moving_time_s // 60) if moving_time_s else None
 
     # Check if there is a matching planned activity (same athlete, sport_type, date within ±1 day)
+    # Pick the closest match by duration_min
     matched_plan = None
     if start_date:
         start_window = start_date - timedelta(days=1)
@@ -155,7 +156,16 @@ async def _upsert_strava_activity(
                 Activity.planned_date <= end_window,
             )
         )
-        matched_plan = plan_query.scalars().first()
+        candidates = plan_query.scalars().all()
+        if candidates:
+            if duration_min is not None:
+                # Sort by absolute difference between candidate plan's duration and actual duration
+                matched_plan = min(
+                    candidates,
+                    key=lambda p: abs((p.duration_min or 0) - duration_min),
+                )
+            else:
+                matched_plan = candidates[0]
 
     if matched_plan:
         # Update existing planned activity to completed

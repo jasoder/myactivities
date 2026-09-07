@@ -108,12 +108,39 @@ async def update_activity(
     activity_in: ActivityUpdate,
 ) -> Activity:
     update_data = activity_in.model_dump(exclude_unset=True)
+
+    # If modifying a completed or matched activity without explicit status override, set to modified
+    if db_activity.status == ActivityStatus.completed and "status" not in update_data:
+        db_activity.status = ActivityStatus.modified
+
     for field, value in update_data.items():
         setattr(db_activity, field, value)
 
     await db.commit()
     await db.refresh(db_activity)
     return db_activity
+
+
+async def mark_missed_activities(db: AsyncSession, before_date: Optional[datetime] = None) -> int:
+    """
+    Finds planned activities where planned_date is before the threshold and no Strava match exists,
+    and transitions their status to missed.
+    """
+    cutoff = before_date or datetime.now(timezone.utc)
+    result = await db.execute(
+        select(Activity).where(
+            Activity.status == ActivityStatus.planned,
+            Activity.planned_date < cutoff,
+            Activity.matched_strava_activity_id.is_(None),
+        )
+    )
+    overdue = result.scalars().all()
+    count = len(overdue)
+    for act in overdue:
+        act.status = ActivityStatus.missed
+    if count > 0:
+        await db.commit()
+    return count
 
 
 async def delete_activity(db: AsyncSession, activity: Activity) -> None:

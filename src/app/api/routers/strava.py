@@ -27,52 +27,17 @@ async def get_strava_auth_url(
 @router.post("/oauth/callback")
 async def strava_oauth_callback(
     code: str = Query(..., description="Authorization code from Strava"),
-    athlete_id: str = Query(..., description="Athlete ID"),
+    athlete_id: uuid.UUID = Query(..., description="Athlete ID"),
     db: AsyncSession = Depends(get_db),
 ):
     """Handle Strava OAuth callback and store tokens."""
-    client_id = os.getenv("STRAVA_CLIENT_ID")
-    client_secret = os.getenv("STRAVA_CLIENT_SECRET")
-
-    if not client_id or not client_secret:
-        raise HTTPException(
-            status_code=500,
-            detail="STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET environment variables not set",
-        )
-
     try:
-        token_data = await StravaClient.exchange_code_for_token(
-            code, client_id, client_secret
-        )
-
-        async with StravaClient(token_data["access_token"]) as client:
-            athlete_data = await client.get_athlete()
-
-        result = await db.execute(select(Athlete).where(Athlete.id == athlete_id))
-        athlete = result.scalar_one_or_none()
-        if not athlete:
-            raise HTTPException(status_code=404, detail="Athlete not found")
-
-        athlete.strava_id = str(athlete_data["id"])
-        athlete.access_token = token_data["access_token"]
-        athlete.refresh_token = token_data.get("refresh_token")
-        athlete.token_expires_at = datetime.fromtimestamp(
-            token_data["expires_at"], tz=timezone.utc
-        )
-
-        await db.commit()
-
-        return {
-            "strava_id": athlete.strava_id,
-            "athlete_name": athlete_data.get("firstname", "")
-            + " "
-            + athlete_data.get("lastname", ""),
-            "connected": True,
-        }
+        from app.services import athlete_service
+        return await athlete_service.handle_strava_oauth_callback(db, athlete_id, code)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"OAuth callback failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
 
 @router.post("/sync")
 async def sync_strava_activities(

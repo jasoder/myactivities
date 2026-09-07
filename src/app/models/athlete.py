@@ -28,7 +28,6 @@ class Athlete(Base):
 
     # Integrations
     strava_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
-    intervals_icu_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
     access_token: Mapped[Optional[str]] = mapped_column(String)
     refresh_token: Mapped[Optional[str]] = mapped_column(String)
     token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

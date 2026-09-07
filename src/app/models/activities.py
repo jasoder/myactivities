@@ -34,7 +34,6 @@ class Activity(Base):
 
     external_id: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True)
     strava_activity_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
-    intervals_activity_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
 
     # Core fields
     source: Mapped[ActivitySource] = mapped_column(Enum(ActivitySource), nullable=False)
@@ -88,7 +87,6 @@ class Activity(Base):
 
     # Links
     strava_url: Mapped[Optional[str]] = mapped_column(String)
-    intervals_url: Mapped[Optional[str]] = mapped_column(String)
 
     def __repr__(self) -> str:
         return (
@@ -117,7 +115,6 @@ class ActivityMetric(Base):
     max_hr_bpm: Mapped[Optional[float]] = mapped_column(Float)
     average_power_w: Mapped[Optional[float]] = mapped_column(Float)
     calories_kcal: Mapped[Optional[float]] = mapped_column(Float)
-    icu_training_load: Mapped[Optional[float]] = mapped_column(Float)
     device_name: Mapped[Optional[str]] = mapped_column(String)
 
     def __repr__(self) -> str:

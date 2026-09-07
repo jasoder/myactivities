@@ -129,27 +129,42 @@ async def generate_weekly_recap(
 ) -> Dict[str, Any]:
     """
     Compares completed vs planned activities for the designated week.
+    Includes planned, completed (including unplanned completed), missed, and modified activities.
     """
+    from sqlalchemy import or_, and_
     week_end = week_start + timedelta(days=7)
 
-    # Query activities for that week
+    # Query activities for that week (checking both planned_date and actual_date)
     result = await db.execute(
         select(Activity)
         .where(
             Activity.athlete_id == athlete_id,
-            Activity.planned_date >= week_start,
-            Activity.planned_date < week_end,
+            or_(
+                and_(
+                    Activity.planned_date.isnot(None),
+                    Activity.planned_date >= week_start,
+                    Activity.planned_date < week_end,
+                ),
+                and_(
+                    Activity.actual_date.isnot(None),
+                    Activity.actual_date >= week_start,
+                    Activity.actual_date < week_end,
+                ),
+            ),
         )
         .options(selectinload(Activity.metrics))
     )
     activities = result.scalars().all()
 
     planned_count = sum(1 for a in activities if a.status in [ActivityStatus.planned, ActivityStatus.missed])
-    completed_count = sum(1 for a in activities if a.status == ActivityStatus.completed)
+    completed_count = sum(1 for a in activities if a.status in [ActivityStatus.completed, ActivityStatus.modified])
     total_completed_min = sum(
         ((a.metrics.duration_min if a.metrics and a.metrics.duration_min else a.duration_min) or 0)
-        for a in activities if a.status == ActivityStatus.completed
+        for a in activities if a.status in [ActivityStatus.completed, ActivityStatus.modified]
     )
+
+    total_target = planned_count + completed_count
+    compliance = round(completed_count / total_target * 100, 1) if total_target > 0 else 100.0
 
     return {
         "athlete_id": str(athlete_id),
@@ -157,7 +172,7 @@ async def generate_weekly_recap(
         "week_end": week_end.isoformat(),
         "planned_sessions": planned_count,
         "completed_sessions": completed_count,
-        "compliance_rate": round(completed_count / (planned_count + completed_count) * 100, 1) if (planned_count + completed_count) > 0 else 100.0,
+        "compliance_rate": compliance,
         "total_completed_hours": round(total_completed_min / 60.0, 2),
         "summary": f"Completed {completed_count} sessions totaling {round(total_completed_min / 60.0, 1)} hours.",
     }
