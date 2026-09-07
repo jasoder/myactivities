@@ -10,15 +10,8 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.enums import ActivitySource
+from app.enums import ActivitySource, ActivityStatus
 from app.models.athlete import Athlete
-
-
-class ActivityStatus(enum.Enum):
-    planned = "planned"
-    completed = "completed"
-    missed = "missed"
-    modified = "modified"
 
 
 class Activity(Base):

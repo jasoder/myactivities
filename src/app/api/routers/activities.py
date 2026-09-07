@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from ...schemas.activities import (
+from app.schemas.activities import (
     ActivitiesResponse,
     ActivityCreate,
     ActivityUpdate,

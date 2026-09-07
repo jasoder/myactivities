@@ -6,6 +6,13 @@ class ActivityType(StrEnum):
     swim = "Swim"
     other = "Other"
     
+class ActivityStatus(StrEnum):
+    planned = "planned"
+    completed = "completed"
+    missed = "missed"
+    modified = "modified"
+
+
 class ActivityGoal(StrEnum):
     recovery = "Recovery"
     endurance = "Endurance"

@@ -12,7 +12,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.exc import IntegrityError
 
 from app.models.athlete import Athlete
-from app.models.activities import Activity, ActivityStatus
+from app.models.activities import Activity, ActivityMetric, ActivityStatus
 from app.enums import ActivitySource
 from app.integrations.strava.client import StravaClient
 
@@ -136,26 +136,68 @@ async def _upsert_strava_activity(
     if isinstance(start_date, str):
         start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
 
-    activity = Activity(
-        athlete_id=athlete_id,
-        strava_activity_id=strava_id,
-        external_id=activity_data.get("external_id"),
-        source=ActivitySource.strava,
-        status=ActivityStatus.completed,
-        name=activity_data.get("name"),
-        sport_type=_map_strava_sport_type(activity_data.get("type", "").lower()),
-        description=activity_data.get("description"),
-        duration_min=activity_data.get("duration") // 60 if activity_data.get("duration") else None,
-        distance_m=activity_data.get("distance") * 1000 if activity_data.get("distance") else None,
-        actual_date=start_date,
-        plan_metadata={
-            'calories': activity_data.get("calories"),
-            'elevation_gain': activity_data.get("elevation_gain"),
-        },
-        last_sync=datetime.now(timezone.utc),
-    )
+    sport_type = _map_strava_sport_type(activity_data.get("type", "").lower())
+    distance_m = float(activity_data.get("distance")) if activity_data.get("distance") is not None else None
+    moving_time_s = activity_data.get("moving_time") or activity_data.get("elapsed_time")
+    duration_min = (moving_time_s // 60) if moving_time_s else None
 
-    db.add(activity)
+    # Check if there is a matching planned activity (same athlete, sport_type, date within ±1 day)
+    matched_plan = None
+    if start_date:
+        start_window = start_date - timedelta(days=1)
+        end_window = start_date + timedelta(days=1)
+        plan_query = await db.execute(
+            select(Activity).where(
+                Activity.athlete_id == athlete_id,
+                Activity.status == ActivityStatus.planned,
+                Activity.sport_type == sport_type,
+                Activity.planned_date >= start_window,
+                Activity.planned_date <= end_window,
+            )
+        )
+        matched_plan = plan_query.scalars().first()
+
+    if matched_plan:
+        # Update existing planned activity to completed
+        activity = matched_plan
+        activity.status = ActivityStatus.completed
+        activity.actual_date = start_date
+        activity.matched_strava_activity_id = strava_id
+        activity.strava_activity_id = strava_id
+        activity.source = ActivitySource.strava
+        activity.last_sync = datetime.now(timezone.utc)
+    else:
+        # Create new completed Activity
+        activity = Activity(
+            athlete_id=athlete_id,
+            strava_activity_id=strava_id,
+            external_id=activity_data.get("external_id"),
+            source=ActivitySource.strava,
+            status=ActivityStatus.completed,
+            name=activity_data.get("name"),
+            sport_type=sport_type,
+            description=activity_data.get("description"),
+            duration_min=duration_min,
+            distance_m=distance_m,
+            actual_date=start_date,
+            last_sync=datetime.now(timezone.utc),
+        )
+        db.add(activity)
+
+    # Attach / update ActivityMetric
+    metric = ActivityMetric(
+        distance_m=distance_m,
+        duration_min=duration_min,
+        elevation_gain_m=float(activity_data.get("total_elevation_gain")) if activity_data.get("total_elevation_gain") is not None else None,
+        average_speed_mps=float(activity_data.get("average_speed")) if activity_data.get("average_speed") is not None else None,
+        average_hr_bpm=float(activity_data.get("average_heartrate")) if activity_data.get("average_heartrate") is not None else None,
+        max_hr_bpm=float(activity_data.get("max_heartrate")) if activity_data.get("max_heartrate") is not None else None,
+        average_power_w=float(activity_data.get("average_watts")) if activity_data.get("average_watts") is not None else None,
+        calories_kcal=float(activity_data.get("calories")) if activity_data.get("calories") is not None else None,
+        device_name=activity_data.get("device_name"),
+    )
+    activity.metrics = metric
+
     await db.flush()  # Flush to get the ID
 
     return {
