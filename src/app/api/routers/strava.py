@@ -104,3 +104,41 @@ async def sync_strava_activities(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
+@router.get("/webhook")
+async def strava_webhook_subscription(
+    hub_mode: str = Query(..., alias="hub.mode"),
+    hub_challenge: str = Query(..., alias="hub.challenge"),
+    hub_verify_token: str = Query(..., alias="hub.verify_token"),
+):
+    """
+    Strava Webhook subscription challenge verification.
+    """
+    expected_token = os.getenv("STRAVA_VERIFY_TOKEN", "STRAVA_WEBHOOK_VERIFY_TOKEN")
+    if hub_mode == "subscribe" and hub_verify_token == expected_token:
+        return {"hub.challenge": hub_challenge}
+    raise HTTPException(status_code=403, detail="Invalid verification token")
+
+
+@router.post("/webhook")
+async def strava_webhook_event(
+    event: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Receive real-time push events from Strava and trigger activity sync.
+    """
+    object_type = event.get("object_type")
+    aspect_type = event.get("aspect_type")
+    owner_id = str(event.get("owner_id"))
+
+    if object_type == "activity" and aspect_type in ["create", "update"]:
+        # Find athlete by strava_id
+        res = await db.execute(select(Athlete).where(Athlete.strava_id == owner_id))
+        athlete = res.scalar_one_or_none()
+        if athlete:
+            from app.services.strava_sync_service import sync_athlete_activities
+            await sync_athlete_activities(str(athlete.id), db, force=False, limit=5)
+
+    return {"status": "ok"}
