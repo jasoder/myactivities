@@ -43,54 +43,45 @@ class Activity(Base):
     strava_activity_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
     intervals_activity_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
 
-    # Phase 1 required fields
+    # Core fields
     source: Mapped[ActivitySource] = mapped_column(Enum(ActivitySource), nullable=False)
     status: Mapped[ActivityStatus] = mapped_column(
         Enum(ActivityStatus), nullable=False, default=ActivityStatus.planned
     )
     sport_type: Mapped[Optional[str]] = mapped_column(String)
 
-    # Date tracking (planned_date vs actual_date as specified)
+    # Date tracking (planned_date vs actual_date)
     planned_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     actual_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-
-    # Plan metadata from Claude (target duration, intensity, structure, reasoning)
-    plan_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, default=dict)
-
-    # Reconciliation support
-    reconciliation_note: Mapped[Optional[str]] = mapped_column(Text)
-    matched_strava_activity_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
-    # Week plan linking (groups activities planned together for scoping replans)
-    week_plan_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("week_plans.id", ondelete="SET NULL"), nullable=True
-    )
 
     # Activity naming/description
     name: Mapped[Optional[str]] = mapped_column(String)
     description: Mapped[Optional[str]] = mapped_column(Text)
 
-    # Duration/intensity
+    # Duration/distance/intensity (planned or high-level)
     duration_min: Mapped[Optional[int]] = mapped_column(Integer)
     distance_m: Mapped[Optional[float]] = mapped_column(Float)
     intensity: Mapped[Optional[float]] = mapped_column(Float)
 
-    # Metrics (for completed activities)
-    elevation_gain_m: Mapped[Optional[float]] = mapped_column(Float)
-    elevation_loss_m: Mapped[Optional[float]] = mapped_column(Float)
-    average_speed_mps: Mapped[Optional[float]] = mapped_column(Float)
-    max_speed_mps: Mapped[Optional[float]] = mapped_column(Float)
-    average_cadence: Mapped[Optional[float]] = mapped_column(Float)
-    average_hr_bpm: Mapped[Optional[float]] = mapped_column(Float)
-    max_hr_bpm: Mapped[Optional[float]] = mapped_column(Float)
-    average_power_w: Mapped[Optional[float]] = mapped_column(Float)
-    max_power_w: Mapped[Optional[float]] = mapped_column(Float)
-    calories_kcal: Mapped[Optional[float]] = mapped_column(Float)
+    # Week plan linking
+    week_plan_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("week_plans.id", ondelete="SET NULL"), nullable=True
+    )
+    week_plan: Mapped[Optional["WeekPlan"]] = relationship(
+        "WeekPlan", back_populates="activities"
+    )
 
-    # Device & gear
-    device_name: Mapped[Optional[str]] = mapped_column(String)
-    gear_id: Mapped[Optional[str]] = mapped_column(String)
-    gear_name: Mapped[Optional[str]] = mapped_column(String)
+    # Reconciliation support
+    matched_strava_activity_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reconciliation_note: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Plan metadata from Claude (target duration, intensity, structure, reasoning)
+    plan_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, default=dict)
+
+    # 1:1 Metric relationship
+    metrics: Mapped[Optional["ActivityMetric"]] = relationship(
+        "ActivityMetric", back_populates="activity", uselist=False, cascade="all, delete-orphan"
+    )
 
     # Sync & housekeeping
     created_at: Mapped[datetime] = mapped_column(
@@ -111,6 +102,33 @@ class Activity(Base):
             f"<Activity(id={self.id}, source={self.source}, "
             f"status={self.status}, sport={self.sport_type})>"
         )
+
+
+class ActivityMetric(Base):
+    """
+    1:1 metrics table for completed activities.
+    Only populated when status=completed.
+    """
+    __tablename__ = "activity_metrics"
+
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activities.id", ondelete="CASCADE"), primary_key=True
+    )
+    activity: Mapped["Activity"] = relationship("Activity", back_populates="metrics")
+
+    distance_m: Mapped[Optional[float]] = mapped_column(Float)
+    duration_min: Mapped[Optional[int]] = mapped_column(Integer)
+    elevation_gain_m: Mapped[Optional[float]] = mapped_column(Float)
+    average_speed_mps: Mapped[Optional[float]] = mapped_column(Float)
+    average_hr_bpm: Mapped[Optional[float]] = mapped_column(Float)
+    max_hr_bpm: Mapped[Optional[float]] = mapped_column(Float)
+    average_power_w: Mapped[Optional[float]] = mapped_column(Float)
+    calories_kcal: Mapped[Optional[float]] = mapped_column(Float)
+    icu_training_load: Mapped[Optional[float]] = mapped_column(Float)
+    device_name: Mapped[Optional[str]] = mapped_column(String)
+
+    def __repr__(self) -> str:
+        return f"<ActivityMetric(activity_id={self.activity_id}, distance_m={self.distance_m})>"
 
 
 class WeekPlan(Base):

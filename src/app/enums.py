@@ -15,9 +15,17 @@ class ActivityGoal(StrEnum):
     intervals = "Intervals"
     long = "Long"
 
-class ActivitySource(Enum):
+class ActivitySource(StrEnum):
+    strava = "strava"
+    intervals = "intervals"
+    manual = "manual"
+    ai_generated = "ai_generated"
+
+    # Uppercase aliases for compatibility
     STRAVA = "strava"
     INTERVALS = "intervals"
+    MANUAL = "manual"
+    AI_GENERATED = "ai_generated"
 
 class LogLevels(StrEnum):
     info = "INFO"
