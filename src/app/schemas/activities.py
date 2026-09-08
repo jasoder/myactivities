@@ -94,3 +94,55 @@ class ActivitiesEntry(BaseModel):
 class ActivitiesResponse(BaseModel):
     events: list[ActivitiesEntry]
 
+
+class ConfirmWeekPlanWorkout(BaseModel):
+    day_offset: int = 0
+    planned_date: Optional[datetime] = None
+    name: str = "Base Endurance Run"
+    sport_type: str = "Run"
+    duration_min: Optional[int] = 60
+    target_distance_m: Optional[float] = 10000.0
+    target_intensity: Optional[float] = 70.0
+    description: Optional[str] = "Zone 2 aerobic base stimulus"
+    plan_metadata: Optional[Dict[str, Any]] = None
+
+
+class ConfirmWeekPlanRequest(BaseModel):
+    athlete_id: UUID
+    week_start_date: datetime
+    reasoning: Optional[str] = "Aerobic base building"
+    workouts: List[ConfirmWeekPlanWorkout]
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "athlete_id": "00000000-0000-0000-0000-000000000000",
+                "week_start_date": "2026-09-08T00:00:00Z",
+                "reasoning": "Progressive aerobic build week",
+                "workouts": [
+                    {
+                        "day_offset": 0,
+                        "planned_date": "2026-09-08T08:00:00Z",
+                        "name": "Base Endurance Run",
+                        "sport_type": "Run",
+                        "duration_min": 60,
+                        "target_distance_m": 10000.0,
+                        "target_intensity": 70.0,
+                        "description": "Zone 2 aerobic pace",
+                    },
+                    {
+                        "day_offset": 2,
+                        "planned_date": "2026-09-10T08:00:00Z",
+                        "name": "Tempo Ride",
+                        "sport_type": "Ride",
+                        "duration_min": 45,
+                        "target_distance_m": 20000.0,
+                        "target_intensity": 85.0,
+                        "description": "Sweet spot intervals",
+                    },
+                ],
+            }
+        }
+    )
+
+

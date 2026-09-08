@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.models.athlete import Athlete
 from app.models.activities import Activity, ActivityMetric, WeekPlan, TrainingPreference, ActivityStatus
 from app.enums import ActivitySource
-from app.ai.client import ClaudeClient
+from app.ai.client import AIClient
 from app.ai.load_analysis_service import calculate_athlete_training_load
 
 
@@ -35,11 +35,30 @@ async def generate_adaptive_week_plan(
     prefs: Optional[TrainingPreference] = athlete.training_preferences
     load_summary = await calculate_athlete_training_load(db, athlete_id, days_back=28)
 
-    # 2. Build prompt for Claude
     system_prompt = (
         "You are an expert endurance sports coach specializing in adaptive training periodization. "
         "Create a personalized 7-day training schedule matching the athlete's load and preferences. "
-        "Return structured workouts with warmups, interval sets, and cooldowns."
+        "Respond ONLY with a JSON object matching this schema:\n"
+        "{\n"
+        '  "reasoning": "string explaining the training periodization strategy",\n'
+        '  "workouts": [\n'
+        "    {\n"
+        '      "day_offset": 0,\n'
+        '      "name": "Base Endurance Ride",\n'
+        '      "sport_type": "Ride",\n'
+        '      "target_duration_min": 60,\n'
+        '      "target_distance_m": 25000,\n'
+        '      "target_intensity": 70,\n'
+        '      "plan_metadata": {\n'
+        '        "structure": {\n'
+        '          "warmup": {"duration_min": 10, "description": "Easy spinning"},\n'
+        '          "main_set": [{"intervals": 1, "duration_min": 40, "intensity": "Zone 2", "recovery_min": 0}],\n'
+        '          "cooldown": {"duration_min": 10, "description": "Easy spinning"}\n'
+        "        }\n"
+        "      }\n"
+        "    }\n"
+        "  ]\n"
+        "}"
     )
 
     user_prompt = f"""
@@ -51,10 +70,10 @@ Rest days preference: {prefs.rest_day_preference if prefs else []}
 Recent 4-week load summary: {json.dumps(load_summary)}
 Week start date: {target_week_start.isoformat()}
 
-Generate a 7-day schedule (day_offset 0 to 6).
+Generate the JSON 7-day schedule (day_offset 0 to 6).
 """
 
-    client = ClaudeClient()
+    client = AIClient()
     ai_output = await client.generate_json(system_prompt, user_prompt)
 
     workouts = []

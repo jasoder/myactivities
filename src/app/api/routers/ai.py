@@ -43,20 +43,23 @@ async def generate_week_plan_preview(
         raise HTTPException(status_code=500, detail=f"Planning generation failed: {str(e)}")
 
 
+from app.schemas.activities import ConfirmWeekPlanRequest
+
+
 @router.post("/confirm-week-plan", status_code=status.HTTP_201_CREATED)
 async def confirm_week_plan_endpoint(
-    plan_payload: Dict[str, Any],
+    plan_payload: ConfirmWeekPlanRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Confirm and write the AI generated week plan and scheduled activities to DB.
     """
     try:
-        athlete_id = uuid.UUID(plan_payload["athlete_id"])
-        week_plan = await confirm_adaptive_week_plan(db, athlete_id, plan_payload)
+        week_plan = await confirm_adaptive_week_plan(db, plan_payload.athlete_id, plan_payload.model_dump(mode="json"))
         return {"week_plan_id": str(week_plan.id), "status": week_plan.status}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to confirm plan: {str(e)}")
+
 
 
 @router.get("/weekly-recap/{athlete_id}")

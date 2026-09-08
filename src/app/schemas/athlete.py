@@ -16,7 +16,6 @@ class AthleteBase(BaseModel):
 
     # Integrations
     strava_id: Optional[str] = None
-    intervals_icu_id: Optional[str] = None
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_expires_at: Optional[datetime] = None

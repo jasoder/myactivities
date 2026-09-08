@@ -156,23 +156,21 @@ async def test_ai_weekly_recap():
 
 @pytest.mark.asyncio
 async def test_ai_client_fallback_and_custom_providers():
-    """Test AIClient fallback, custom URL/key, and standard API modes."""
     from app.ai.client import AIClient
 
-    # 1. Fallback when no URL or keys provided
-    client = AIClient()
-    result = await client.generate_json("System prompt", "User prompt")
-    assert "workouts" in result
-    assert "reasoning" in result
+    with patch.dict("os.environ", {"AI_API_KEY": "", "AI_API_URL": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": ""}, clear=True):
+        client = AIClient()
+        result = await client.generate_json("System prompt", "User prompt")
+        assert "workouts" in result
+        assert "reasoning" in result
 
-    # 2. Standard OpenAI-compatible format (Ollama, vLLM, OpenRouter, etc.)
+
     custom_client = AIClient(
         api_key="fake-custom-key",
         api_url="http://localhost:11434/v1",
-        model="llama3.2",
     )
     assert custom_client.api_url == "http://localhost:11434/v1"
-    assert custom_client.model == "llama3.2"
+    assert custom_client.api_key == "fake-custom-key"
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -193,11 +191,9 @@ async def test_ai_client_fallback_and_custom_providers():
         assert res["reasoning"] == "Local LLM plan"
         assert mock_post.call_args[1]["headers"]["Authorization"] == "Bearer fake-custom-key"
 
-    # 3. Anthropic endpoint format
     anthropic_client = AIClient(
         api_key="fake-anthropic-key",
         api_url="https://api.anthropic.com/v1/messages",
-        model="claude-3-5-sonnet-20241022",
     )
     mock_anthropic_resp = MagicMock()
     mock_anthropic_resp.status_code = 200
@@ -215,5 +211,18 @@ async def test_ai_client_fallback_and_custom_providers():
         res = await anthropic_client.generate_json("sys", "usr")
         assert res["reasoning"] == "Anthropic plan"
         assert mock_post.call_args[1]["headers"]["x-api-key"] == "fake-anthropic-key"
+
+    model_client = AIClient(
+        api_key="fake-key",
+        api_url="http://localhost:11434/v1",
+        model="llama3.2",
+    )
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        await model_client.generate_json("sys", "usr")
+        assert mock_post.call_args[1]["json"]["model"] == "llama3.2"
+
+
+
 
 

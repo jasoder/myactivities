@@ -39,7 +39,8 @@ async def seed_db():
             metrics=ActivityMetric(
                 distance_m=32000.0,
                 duration_min=60,
-                icu_training_load=85.5,
+                average_power_w=220.0,
+                average_hr_bpm=145.0,
             )
         )
         
@@ -56,7 +57,8 @@ async def seed_db():
             metrics=ActivityMetric(
                 distance_m=10000.0,
                 duration_min=45,
-                icu_training_load=65.0,
+                average_hr_bpm=160.0,
+                calories_kcal=520.0,
             )
         )
         
