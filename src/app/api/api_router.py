@@ -2,10 +2,9 @@ from fastapi import APIRouter
 from starlette.responses import JSONResponse
 from app.schemas.errors import ErrorResponse
 from app.api.routers.athletes import router as athletes
-from app.api.routers.completed_activities import router as completed_activities
-from app.api.routers.planned_activities import router as planned_activities
 from app.api.routers.activities import router as activities
 from app.api.routers.strava import router as strava
+from app.api.routers.ai import router as ai
 
 api_router = APIRouter(
     default_response_class=JSONResponse,
@@ -19,7 +18,6 @@ api_router = APIRouter(
 )
 
 api_router.include_router(athletes, prefix="/athletes", tags=["Athletes"])
-api_router.include_router(completed_activities, prefix="/completedActivities", tags=["Completed Activities"])
-api_router.include_router(planned_activities, prefix="/plannedActivities", tags=["Planned Activities"])
 api_router.include_router(activities, prefix="/activities", tags=["Activities"])
 api_router.include_router(strava, prefix="/strava", tags=["Strava Integration"])
+api_router.include_router(ai, prefix="/ai", tags=["AI Adaptive Scheduling"])

@@ -8,8 +8,6 @@ import uuid
 from sqlalchemy.dialects.postgresql import UUID
 
 if TYPE_CHECKING:
-    from app.models.completed_activity import CompletedActivity
-    from app.models.planned_activity import PlannedActivity
     from app.models.activities import Activity, WeekPlan, TrainingPreference
     
 class Athlete(Base):
@@ -30,7 +28,6 @@ class Athlete(Base):
 
     # Integrations
     strava_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
-    intervals_icu_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
     access_token: Mapped[Optional[str]] = mapped_column(String)
     refresh_token: Mapped[Optional[str]] = mapped_column(String)
     token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -60,12 +57,4 @@ class Athlete(Base):
     )
     training_preferences: Mapped["TrainingPreference"] = relationship(
         "TrainingPreference", back_populates="athlete", uselist=False, cascade="all, delete-orphan"
-    )
-
-    # Legacy relationships (kept for backward compatibility)
-    completed_activities: Mapped[list["CompletedActivity"]] = relationship(
-        "CompletedActivity", back_populates="athlete", cascade="all, delete"
-    )
-    planned_activities: Mapped[list["PlannedActivity"]] = relationship(
-        "PlannedActivity", back_populates="athlete", cascade="all, delete"
     )

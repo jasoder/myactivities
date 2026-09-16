@@ -19,6 +19,12 @@ services:
     build: .
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:myactivities@db:5432/myactivities-test
+      AI_API_URL: ${AI_API_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      STRAVA_VERIFY_TOKEN: ${STRAVA_VERIFY_TOKEN:-}
     ports:
       - "8000:8000"
     depends_on:

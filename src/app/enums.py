@@ -6,6 +6,13 @@ class ActivityType(StrEnum):
     swim = "Swim"
     other = "Other"
     
+class ActivityStatus(StrEnum):
+    planned = "planned"
+    completed = "completed"
+    missed = "missed"
+    modified = "modified"
+
+
 class ActivityGoal(StrEnum):
     recovery = "Recovery"
     endurance = "Endurance"
@@ -15,9 +22,17 @@ class ActivityGoal(StrEnum):
     intervals = "Intervals"
     long = "Long"
 
-class ActivitySource(Enum):
+class ActivitySource(StrEnum):
+    strava = "strava"
+    intervals = "intervals"
+    manual = "manual"
+    ai_generated = "ai_generated"
+
+    # Uppercase aliases for compatibility
     STRAVA = "strava"
     INTERVALS = "intervals"
+    MANUAL = "manual"
+    AI_GENERATED = "ai_generated"
 
 class LogLevels(StrEnum):
     info = "INFO"

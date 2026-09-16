@@ -8,9 +8,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.base import async_session
 from app.models.athlete import Athlete
-from app.models.completed_activity import CompletedActivity
-from app.models.planned_activity import PlannedActivity
-from app.enums import ActivityType, ActivityGoal, ActivitySource
+from app.models.activities import Activity, ActivityMetric, ActivityStatus
+from app.enums import ActivitySource
 
 # python3 src/scripts/seed_db.py
 
@@ -26,65 +25,72 @@ async def seed_db():
         session.add(athlete)
         await session.flush()
         
-        # Current month is January 2026
-        now = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
-        
         # Create 2 completed activities in January
-        completed1 = CompletedActivity(
+        act1 = Activity(
             id=uuid.uuid4(),
             athlete_id=athlete_id,
             name="Morning Ride",
             source=ActivitySource.STRAVA,
+            status=ActivityStatus.completed,
             sport_type="Ride",
-            start_date=datetime(2026, 1, 3, 8, 0, 0, tzinfo=timezone.utc),
-            start_date_local=datetime(2026, 1, 3, 8, 0, 0),
+            actual_date=datetime(2026, 1, 3, 8, 0, 0, tzinfo=timezone.utc),
             distance_m=32000.0,
-            moving_time_s=3600,
-            icu_training_load=85.5
+            duration_min=60,
+            metrics=ActivityMetric(
+                distance_m=32000.0,
+                duration_min=60,
+                average_power_w=220.0,
+                average_hr_bpm=145.0,
+            )
         )
         
-        completed2 = CompletedActivity(
+        act2 = Activity(
             id=uuid.uuid4(),
             athlete_id=athlete_id,
             name="Evening Run",
             source=ActivitySource.STRAVA,
+            status=ActivityStatus.completed,
             sport_type="Run",
-            start_date=datetime(2026, 1, 5, 17, 0, 0, tzinfo=timezone.utc),
-            start_date_local=datetime(2026, 1, 5, 17, 0, 0),
+            actual_date=datetime(2026, 1, 5, 17, 0, 0, tzinfo=timezone.utc),
             distance_m=10000.0,
-            moving_time_s=2700,
-            icu_training_load=65.0
+            duration_min=45,
+            metrics=ActivityMetric(
+                distance_m=10000.0,
+                duration_min=45,
+                average_hr_bpm=160.0,
+                calories_kcal=520.0,
+            )
         )
         
-        session.add(completed1)
-        session.add(completed2)
+        session.add(act1)
+        session.add(act2)
         await session.flush()
         
         # Create 2 planned activities in January
-        planned1 = PlannedActivity(
+        planned1 = Activity(
             id=uuid.uuid4(),
             athlete_id=athlete_id,
             name="Long Ride",
-            type=ActivityType.ride,
-            goal=ActivityGoal.endurance,
-            scheduled_date=datetime(2026, 1, 12, 9, 0, 0, tzinfo=timezone.utc),
-            target_distance=48000.0,
-            target_duration=5400,
-            target_intensity=120.0,
-            completed=False
+            source=ActivitySource.manual,
+            status=ActivityStatus.planned,
+            sport_type="Ride",
+            planned_date=datetime(2026, 1, 12, 9, 0, 0, tzinfo=timezone.utc),
+            distance_m=48000.0,
+            duration_min=90,
+            intensity=120.0,
         )
         
-        planned2 = PlannedActivity(
+        planned2 = Activity(
             id=uuid.uuid4(),
             athlete_id=athlete_id,
             name="Interval Training",
-            type=ActivityType.run,
-            goal=ActivityGoal.threshold,
-            scheduled_date=datetime(2026, 1, 18, 10, 0, 0, tzinfo=timezone.utc),
-            target_distance=15000.0,
-            target_duration=3600,
-            target_intensity=150.0,
-            completed=False
+            source=ActivitySource.manual,
+            status=ActivityStatus.planned,
+            sport_type="Run",
+            planned_date=datetime(2026, 1, 18, 10, 0, 0, tzinfo=timezone.utc),
+            distance_m=15000.0,
+            duration_min=60,
+            intensity=150.0,
         )
         
         session.add(planned1)
