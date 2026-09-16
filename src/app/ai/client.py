@@ -16,10 +16,10 @@ class AIClient:
         self.model = model or os.getenv("AI_MODEL", "")
 
     async def generate_json(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
-        if not self.api_url and not self.api_key:
+        if not self.api_url:
             return self._fallback_response(user_prompt)
 
-        target_url = self.api_url or "https://api.anthropic.com/v1/messages"
+        target_url = self.api_url
         headers: Dict[str, str] = {"Content-Type": "application/json"}
         is_anthropic = "anthropic.com" in target_url or target_url.endswith("/messages")
 
@@ -29,7 +29,7 @@ class AIClient:
                     headers["x-api-key"] = self.api_key
                 headers["anthropic-version"] = "2023-06-01"
                 payload: Dict[str, Any] = {
-                    "model": self.model or "claude-3-5-sonnet-20241022",
+                    "model": self.model,
                     "max_tokens": 4096,
                     "system": system_prompt + "\nYou must respond with valid raw JSON only, no markdown wrapping.",
                     "messages": [{"role": "user", "content": user_prompt}],
