@@ -75,7 +75,7 @@ Shared fields for all activities regardless of status:
 | `id` | UUID | Primary key |
 | `athlete_id` | UUID (FK) | References `athletes.id` |
 | `status` | Enum | planned, completed, missed, modified |
-| `source` | Enum | strava, intervals, manual |
+| `source` | Enum | strava, manual |
 | `sport_type` | String | Ride, Run, Swim, Other |
 | `planned_date` | DateTime | When user intended to do it |
 | `actual_date` | DateTime | When activity actually happened |
@@ -103,7 +103,6 @@ Optional 1:1 table for completed activity metrics (FK to `activities`):
 | `max_hr_bpm` | Float | Max heart rate |
 | `average_power_w` | Float | Average power |
 | `calories_kcal` | Float | Calories burned |
-| `icu_training_load` | Float | Intervals.icu training load |
 | `device_name` | String | Connected device |
 
 **Only populated when `status=completed`.** The `ActivityMetric` table stays NULL for planned activities.
@@ -134,10 +133,6 @@ One row per athlete storing training preferences used by the AI planning service
 - Legacy routes deleted: `/completedActivities`, `/plannedActivities`
 - All services updated to use unified `Activity` model
 - Athlete model relationships updated to remove legacy references
-
-## Intervals.icu Integration
-
-Removed from MVP. The Intervals.icu integration service was broken and is not required for the core MVP. Intervals.icu support can be re-added as a Phase 2 feature.
 
 ## Environment Variables
 

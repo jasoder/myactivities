@@ -68,7 +68,6 @@ async def test_get_activities_for_athlete_with_activities():
                 metrics=mock_obj(
                     distance_m=30000.0,
                     duration_min=60,
-                    icu_training_load=85.5,
                 ),
             ),
             mock_obj(
@@ -193,7 +192,7 @@ async def test_get_activities_ordering():
                 distance_m=5000.0,
                 duration_min=30,
                 intensity=None,
-                metrics=mock_obj(distance_m=5000.0, duration_min=30, icu_training_load=None),
+                metrics=mock_obj(distance_m=5000.0, duration_min=30),
             ),
             mock_obj(
                 id=uuid.uuid4(),
@@ -207,7 +206,7 @@ async def test_get_activities_ordering():
                 distance_m=1000.0,
                 duration_min=20,
                 intensity=None,
-                metrics=mock_obj(distance_m=1000.0, duration_min=20, icu_training_load=None),
+                metrics=mock_obj(distance_m=1000.0, duration_min=20),
             ),
         ]
 

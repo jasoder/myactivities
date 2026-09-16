@@ -15,7 +15,6 @@ class ActivityMetricBase(BaseModel):
     max_hr_bpm: Optional[float] = None
     average_power_w: Optional[float] = None
     calories_kcal: Optional[float] = None
-    icu_training_load: Optional[float] = None
     device_name: Optional[str] = None
 
 

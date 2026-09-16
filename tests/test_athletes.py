@@ -71,7 +71,6 @@ async def test_athlete_get_mocked():
                 max_hr=None,
                 lthr=None,
                 strava_id=None,
-                intervals_icu_id=None,
                 access_token=None,
                 refresh_token=None,
                 token_expires_at=None,

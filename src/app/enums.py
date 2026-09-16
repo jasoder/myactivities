@@ -19,18 +19,15 @@ class ActivityGoal(StrEnum):
     tempo = "Tempo"
     threshold = "Threshold"
     vo2max = "VO2 Max"
-    intervals = "Intervals"
     long = "Long"
 
 class ActivitySource(StrEnum):
     strava = "strava"
-    intervals = "intervals"
     manual = "manual"
     ai_generated = "ai_generated"
 
     # Uppercase aliases for compatibility
     STRAVA = "strava"
-    INTERVALS = "intervals"
     MANUAL = "manual"
     AI_GENERATED = "ai_generated"
 

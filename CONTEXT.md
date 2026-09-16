@@ -42,7 +42,6 @@ Migration approach where legacy tables (`completed_activities`, `planned_activit
 | Split core + metrics | Metrics only apply to completed activities; keeping them separate avoids NULL columns for planned activities |
 | Status-based model | `status` field (planned/completed/missed/modified) captures activity lifecycle; `planned_date` and `actual_date` capture intent vs reality |
 | Big bang migration | Legacy code is minimal; cleaning up in one pass is faster than maintaining dual systems |
-| Remove Intervals.icu from MVP | Broken service; not needed for core MVP; re-add as Phase 2 |
 | Delete legacy routes | Single `/activities` endpoint is cleaner API; reduces maintenance burden |
 | Frontend Phase 2 | React Native + Web frontend is deferred; backend API is the MVP foundation |
 | AI adaptive scheduling | Claude API-powered workflow: analyze completed → generate adjustments → user confirms → writes to DB |
