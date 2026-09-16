@@ -176,9 +176,7 @@ async def get_activities_events(
             else (a.duration_min * 60 if a.duration_min is not None else None)
         )
         training_load = (
-            metrics.icu_training_load
-            if (metrics and metrics.icu_training_load is not None)
-            else a.intensity
+            a.intensity
         )
 
         events.append(
