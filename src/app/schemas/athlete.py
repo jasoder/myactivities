@@ -59,3 +59,24 @@ class AthleteCreateResponse(BaseModel):
     id: UUID
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class TrainingPreferenceBase(BaseModel):
+    max_days_per_week: int = 7
+    sport_targets: dict = Field(default_factory=dict)
+    split_notes: Optional[str] = None
+    rest_day_preference: Optional[List[str]] = None
+
+
+class TrainingPreferenceUpdate(BaseModel):
+    max_days_per_week: Optional[int] = None
+    sport_targets: Optional[dict] = None
+    split_notes: Optional[str] = None
+    rest_day_preference: Optional[List[str]] = None
+
+
+class TrainingPreferenceRead(TrainingPreferenceBase):
+    athlete_id: UUID
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

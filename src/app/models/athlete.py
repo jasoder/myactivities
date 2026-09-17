@@ -18,6 +18,7 @@ class Athlete(Base):
     )
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    hashed_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     # Performance metrics
     ftp: Mapped[Optional[int]] = mapped_column(Integer)

@@ -27,7 +27,7 @@ async def get_strava_auth_url(
 @router.post("/oauth/callback")
 async def strava_oauth_callback(
     code: str = Query(..., description="Authorization code from Strava"),
-    athlete_id: uuid.UUID = Query(..., description="Athlete ID"),
+    athlete_id: uuid.UUID | None = Query(None, description="Athlete ID (optional)"),
     db: AsyncSession = Depends(get_db),
 ):
     """Handle Strava OAuth callback and store tokens."""
