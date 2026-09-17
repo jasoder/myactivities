@@ -5,6 +5,7 @@ from app.db.session import get_db
 from app.models.athlete import Athlete
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse
 from app.schemas.athlete import AthleteRead
+from app.core.security import ACCESS_TOKEN_EXPIRE_SECONDS
 from app.services.auth_service import (
     register_user,
     authenticate_user,
@@ -24,6 +25,7 @@ async def register_endpoint(
     return TokenResponse(
         access_token=token,
         token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_SECONDS,
         athlete=AthleteRead.model_validate(athlete),
     )
 
@@ -38,6 +40,7 @@ async def login_endpoint(
     return TokenResponse(
         access_token=token,
         token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_SECONDS,
         athlete=AthleteRead.model_validate(athlete),
     )
 
