@@ -179,6 +179,36 @@ async def test_get_me_with_valid_token():
             app.dependency_overrides.pop(get_current_athlete, None)
 
 
+@pytest.mark.asyncio
+async def test_get_current_athlete_real_token_variations():
+    from app.services.auth_service import get_current_athlete
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    test_id = uuid.uuid4()
+    token = create_access_token({"sub": str(test_id), "email": "athlete@example.com"})
+    mock_athlete = make_mock_athlete(athlete_id=test_id, email="athlete@example.com")
+
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_athlete
+    mock_db.execute.return_value = mock_result
+
+    # 1. Normal clean token
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+    user = await get_current_athlete(creds, mock_db)
+    assert user.id == test_id
+
+    # 2. Token with accidental redundant 'Bearer ' prefix (from Swagger UI paste)
+    creds_double = HTTPAuthorizationCredentials(scheme="Bearer", credentials=f"Bearer {token}")
+    user_double = await get_current_athlete(creds_double, mock_db)
+    assert user_double.id == test_id
+
+    # 3. Token with surrounding quotes (from JSON copy paste)
+    creds_quotes = HTTPAuthorizationCredentials(scheme="Bearer", credentials=f'"{token}"')
+    user_quotes = await get_current_athlete(creds_quotes, mock_db)
+    assert user_quotes.id == test_id
+
+
 # 3. Service Level Auth Tests
 @pytest.mark.asyncio
 async def test_service_register_duplicate_email():

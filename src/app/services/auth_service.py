@@ -86,7 +86,10 @@ async def get_current_athlete(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = credentials.credentials
+    token = credentials.credentials.strip().strip("\"'")
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip().strip("\"'")
+
     payload = decode_access_token(token)
     if not payload:
         raise HTTPException(
