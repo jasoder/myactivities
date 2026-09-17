@@ -94,3 +94,55 @@ async def test_athlete_get_not_found_mocked():
             mock_get.return_value = None
             r = await client.get(f"/myactivities/athletes/{uuid.uuid4()}")
             assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_athlete_get_preferences_mocked():
+    """Test fetching athlete training preferences."""
+    test_id = uuid.uuid4()
+    async with mock_app() as client:
+        with patch("app.services.athlete_service.get_athlete_by_id") as mock_get, \
+             patch("app.services.athlete_service.get_or_create_training_preferences") as mock_pref:
+            mock_get.return_value = mock_obj(id=test_id, email="athlete@example.com")
+            mock_pref.return_value = mock_obj(
+                athlete_id=test_id,
+                max_days_per_week=5,
+                sport_targets={"Run": 3},
+                split_notes="3 runs",
+                rest_day_preference=["monday"],
+                updated_at=datetime.now(timezone.utc),
+            )
+
+            r = await client.get(f"/myactivities/athletes/{test_id}/preferences")
+            assert r.status_code == 200
+            data = r.json()
+            assert data["max_days_per_week"] == 5
+            assert data["sport_targets"] == {"Run": 3}
+
+
+@pytest.mark.asyncio
+async def test_athlete_update_preferences_mocked():
+    """Test updating athlete training preferences."""
+    test_id = uuid.uuid4()
+    async with mock_app() as client:
+        with patch("app.services.athlete_service.get_athlete_by_id") as mock_get, \
+             patch("app.services.athlete_service.update_training_preferences") as mock_pref:
+            mock_get.return_value = mock_obj(id=test_id, email="athlete@example.com")
+            mock_pref.return_value = mock_obj(
+                athlete_id=test_id,
+                max_days_per_week=6,
+                sport_targets={"Ride": 4},
+                split_notes="4 rides",
+                rest_day_preference=["sunday"],
+                updated_at=datetime.now(timezone.utc),
+            )
+
+            r = await client.put(
+                f"/myactivities/athletes/{test_id}/preferences",
+                json={"max_days_per_week": 6, "sport_targets": {"Ride": 4}},
+            )
+            assert r.status_code == 200
+            data = r.json()
+            assert data["max_days_per_week"] == 6
+            assert data["sport_targets"] == {"Ride": 4}
+

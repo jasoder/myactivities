@@ -27,6 +27,29 @@ async def update_existing_athlete(db: AsyncSession, athlete: Athlete, athlete_in
     
     return athlete
 
+
+async def get_or_create_training_preferences(db: AsyncSession, athlete_id: uuid.UUID):
+    from app.models.activities import TrainingPreference
+    result = await db.execute(select(TrainingPreference).where(TrainingPreference.athlete_id == athlete_id))
+    pref = result.scalar_one_or_none()
+    if not pref:
+        pref = TrainingPreference(athlete_id=athlete_id)
+        db.add(pref)
+        await db.commit()
+        await db.refresh(pref)
+    return pref
+
+
+async def update_training_preferences(
+    db: AsyncSession, athlete_id: uuid.UUID, pref_in
+):
+    pref = await get_or_create_training_preferences(db, athlete_id)
+    for field, value in pref_in.model_dump(exclude_unset=True).items():
+        setattr(pref, field, value)
+    await db.commit()
+    await db.refresh(pref)
+    return pref
+
 async def handle_strava_oauth_callback(
     db: AsyncSession, athlete_id: uuid.UUID | None, code: str
 ) -> dict:

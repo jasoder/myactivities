@@ -1,7 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from app.schemas.athlete import AthleteCreate, AthleteUpdate, AthleteRead, AthleteCreateResponse
+from app.schemas.athlete import (
+    AthleteCreate,
+    AthleteUpdate,
+    AthleteRead,
+    AthleteCreateResponse,
+    TrainingPreferenceRead,
+    TrainingPreferenceUpdate,
+)
 from app.services import athlete_service
 import uuid
 
@@ -55,3 +62,25 @@ async def delete_athlete(athlete_id: uuid.UUID, db: AsyncSession = Depends(get_d
         )
     
     return None
+
+
+@router.get("/{athlete_id}/preferences", response_model=TrainingPreferenceRead)
+async def get_athlete_preferences(athlete_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """Get training preferences for athlete, creating default if not yet existing."""
+    athlete = await athlete_service.get_athlete_by_id(db, athlete_id)
+    if not athlete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Athlete not found")
+    return await athlete_service.get_or_create_training_preferences(db, athlete_id)
+
+
+@router.put("/{athlete_id}/preferences", response_model=TrainingPreferenceRead)
+async def update_athlete_preferences(
+    athlete_id: uuid.UUID,
+    pref_in: TrainingPreferenceUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update training preferences for athlete."""
+    athlete = await athlete_service.get_athlete_by_id(db, athlete_id)
+    if not athlete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Athlete not found")
+    return await athlete_service.update_training_preferences(db, athlete_id, pref_in)
