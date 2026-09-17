@@ -9,7 +9,6 @@ from app.core.security import ACCESS_TOKEN_EXPIRE_SECONDS
 from app.services.auth_service import (
     register_user,
     authenticate_user,
-    get_current_athlete,
 )
 
 router = APIRouter()
@@ -43,11 +42,3 @@ async def login_endpoint(
         expires_in=ACCESS_TOKEN_EXPIRE_SECONDS,
         athlete=AthleteRead.model_validate(athlete),
     )
-
-
-@router.get("/me", response_model=AthleteRead)
-async def get_me_endpoint(
-    current_athlete: Athlete = Depends(get_current_athlete),
-):
-    """Return the profile of the currently authenticated athlete."""
-    return AthleteRead.model_validate(current_athlete)

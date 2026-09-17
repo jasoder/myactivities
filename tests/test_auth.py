@@ -152,7 +152,7 @@ async def test_login_success():
 @pytest.mark.asyncio
 async def test_get_me_without_token():
     async with mock_app() as client:
-        res = await client.get("/myactivities/auth/me")
+        res = await client.get("/myactivities/athletes/me")
         assert res.status_code == 401
 
 
@@ -170,19 +170,11 @@ async def test_get_me_with_valid_token():
         app.dependency_overrides[get_current_athlete] = mock_get_current_athlete
         try:
             res = await client.get(
-                "/myactivities/auth/me",
+                "/myactivities/athletes/me",
                 headers={"Authorization": "Bearer mock_token"},
             )
             assert res.status_code == 200
             assert res.json()["email"] == "athlete@example.com"
-
-            # Also check /athletes/me
-            res_athletes_me = await client.get(
-                "/myactivities/athletes/me",
-                headers={"Authorization": "Bearer mock_token"},
-            )
-            assert res_athletes_me.status_code == 200
-            assert res_athletes_me.json()["email"] == "athlete@example.com"
         finally:
             app.dependency_overrides.pop(get_current_athlete, None)
 
