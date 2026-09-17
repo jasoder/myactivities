@@ -5,7 +5,17 @@ from app.schemas.athlete import AthleteCreate, AthleteUpdate, AthleteRead, Athle
 from app.services import athlete_service
 import uuid
 
+from app.services.auth_service import get_current_athlete
+from app.models.athlete import Athlete
+
 router = APIRouter()
+
+@router.get("/me", response_model=AthleteRead)
+async def get_current_athlete_profile(
+    current_athlete: Athlete = Depends(get_current_athlete),
+):
+    """Get profile of current authenticated athlete."""
+    return current_athlete
 
 @router.get("/{athlete_id}", response_model=AthleteRead)
 async def get_athlete(athlete_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
