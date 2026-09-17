@@ -28,6 +28,17 @@ async def update_existing_athlete(db: AsyncSession, athlete: Athlete, athlete_in
     return athlete
 
 
+async def delete_athlete_by_id(db: AsyncSession, athlete_id: uuid.UUID) -> bool:
+    stmt = select(exists().where(Athlete.id == athlete_id))
+    result = await db.execute(stmt)
+    if not result.scalar():
+        return False
+
+    await db.execute(delete(Athlete).where(Athlete.id == athlete_id))
+    await db.commit()
+    return True
+
+
 async def get_or_create_training_preferences(db: AsyncSession, athlete_id: uuid.UUID):
     from app.models.activities import TrainingPreference
     result = await db.execute(select(TrainingPreference).where(TrainingPreference.athlete_id == athlete_id))
