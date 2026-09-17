@@ -1,7 +1,7 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 from uuid import UUID, uuid4
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator
 
 class AthleteBase(BaseModel):
     email: EmailStr
@@ -14,12 +14,6 @@ class AthleteBase(BaseModel):
     max_hr: Optional[int] = None
     lthr: Optional[int] = None
 
-    # Integrations
-    strava_id: Optional[str] = None
-    access_token: Optional[str] = None
-    refresh_token: Optional[str] = None
-    token_expires_at: Optional[datetime] = None
-
     # Preferences
     preferred_sports: Optional[List[str]] = Field(default_factory=list)
     timezone: Optional[str] = "UTC"
@@ -29,8 +23,7 @@ class AthleteBase(BaseModel):
 
 class AthleteCreate(AthleteBase):
     """Fields required for creating a new athlete"""
-    email: EmailStr
-    id: UUID  = Field(default_factory=uuid4)
+    id: UUID = Field(default_factory=uuid4)
 
 
 class AthleteUpdate(BaseModel):
@@ -47,12 +40,30 @@ class AthleteUpdate(BaseModel):
 
 
 class AthleteRead(AthleteBase):
-    """Fields returned from the API"""
+    """Sanitized, safe public profile of an athlete."""
     id: UUID
+    strava_connected: bool = False
     created_at: datetime
     updated_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def compute_strava_connected(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "strava_connected" not in data:
+                data["strava_connected"] = bool(data.get("strava_id") or data.get("access_token"))
+            return data
+        # For ORM object or MagicMock
+        strava_id = getattr(data, "strava_id", None)
+        access_token = getattr(data, "access_token", None)
+        try:
+            if not hasattr(data, "strava_connected") or getattr(data, "strava_connected", None) is None:
+                setattr(data, "strava_connected", bool(strava_id or access_token))
+        except Exception:
+            pass
+        return data
         
         
 class AthleteCreateResponse(BaseModel):

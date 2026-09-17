@@ -93,6 +93,8 @@ async def handle_strava_oauth_callback(
                 )
                 db.add(athlete)
 
+    from app.core.security import create_access_token, ACCESS_TOKEN_EXPIRE_SECONDS
+
     athlete.strava_id = strava_id_str
     athlete.access_token = token_data["access_token"]
     athlete.refresh_token = token_data.get("refresh_token")
@@ -108,9 +110,11 @@ async def handle_strava_oauth_callback(
     return {
         "access_token": jwt_token,
         "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_SECONDS,
         "athlete_id": str(athlete.id),
         "email": athlete.email,
         "strava_id": athlete.strava_id,
         "athlete_name": strava_name or athlete.name or "",
         "connected": True,
+        "strava_connected": True,
     }

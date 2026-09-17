@@ -18,6 +18,7 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    expires_in: int = Field(..., description="Access token expiration in seconds")
     athlete: AthleteRead
 
     model_config = ConfigDict(from_attributes=True)

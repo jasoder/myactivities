@@ -107,7 +107,13 @@ async def test_register_success():
             assert res.status_code == 201
             data = res.json()
             assert data["access_token"] == "mock_jwt_token"
+            assert data["token_type"] == "bearer"
+            assert data["expires_in"] > 0
             assert data["athlete"]["email"] == "runner@example.com"
+            assert "access_token" not in data["athlete"]
+            assert "refresh_token" not in data["athlete"]
+            assert "hashed_password" not in data["athlete"]
+            assert "strava_connected" in data["athlete"]
 
 
 @pytest.mark.asyncio
@@ -136,6 +142,11 @@ async def test_login_success():
             data = res.json()
             assert data["access_token"] == "valid_token_xyz"
             assert data["token_type"] == "bearer"
+            assert data["expires_in"] > 0
+            assert data["athlete"]["email"] == "runner@example.com"
+            assert "access_token" not in data["athlete"]
+            assert "refresh_token" not in data["athlete"]
+            assert "hashed_password" not in data["athlete"]
 
 
 @pytest.mark.asyncio
