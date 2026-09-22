@@ -29,8 +29,8 @@ class ActivityMetricRead(ActivityMetricBase):
 
 
 class ActivityBase(BaseModel):
-    athlete_id: UUID
-    source: ActivitySource
+    athlete_id: Optional[UUID] = None
+    source: ActivitySource = ActivitySource.manual
     status: ActivityStatus = ActivityStatus.planned
     sport_type: Optional[str] = None
     planned_date: Optional[datetime] = None

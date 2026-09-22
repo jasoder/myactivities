@@ -50,8 +50,11 @@ def mock_obj(**kwargs):
 
 @pytest.mark.asyncio
 async def test_get_activities_for_athlete_with_activities():
-    """Test retrieving activities for an athlete with both completed and planned activities."""
+    """Test retrieving activities for an authenticated user with both completed and planned activities."""
+    from app.services.auth_service import get_current_athlete
     async with mock_app() as client:
+        client_athlete = mock_obj(id=athlete_id)
+        app.dependency_overrides[get_current_athlete] = lambda: client_athlete
         mock_activities = [
             mock_obj(
                 id=uuid.uuid4(),
@@ -93,7 +96,8 @@ async def test_get_activities_for_athlete_with_activities():
             end_date_str = quote((tomorrow + timedelta(days=1)).isoformat())
 
             response = await client.get(
-                f"/myactivities/activities/{athlete_id}?start_date={start_date_str}&end_date={end_date_str}"
+                f"/myactivities/user/activities?start_date={start_date_str}&end_date={end_date_str}",
+                headers={"Authorization": "Bearer mock_token"},
             )
 
             assert response.status_code == 200
@@ -115,8 +119,11 @@ async def test_get_activities_for_athlete_with_activities():
 @pytest.mark.asyncio
 async def test_get_activities_for_athlete_no_activities_in_range():
     """Test retrieving activities for an athlete with no activities within the date range."""
+    from app.services.auth_service import get_current_athlete
     async with mock_app() as client:
         test_athlete_id = uuid.uuid4()
+        client_athlete = mock_obj(id=test_athlete_id)
+        app.dependency_overrides[get_current_athlete] = lambda: client_athlete
         start_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
         end_date = datetime(2026, 1, 7, tzinfo=timezone.utc)
 
@@ -124,7 +131,8 @@ async def test_get_activities_for_athlete_no_activities_in_range():
             mock_get.return_value = []
 
             response = await client.get(
-                f"/myactivities/activities/{test_athlete_id}?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}"
+                f"/myactivities/user/activities?start_date={quote(start_date.isoformat())}&end_date={quote(end_date.isoformat())}",
+                headers={"Authorization": "Bearer mock_token"},
             )
 
             assert response.status_code == 200
@@ -136,13 +144,17 @@ async def test_get_activities_for_athlete_no_activities_in_range():
 @pytest.mark.asyncio
 async def test_get_activities_with_invalid_date_format():
     """Test retrieving activities with invalid date formats."""
+    from app.services.auth_service import get_current_athlete
     async with mock_app() as client:
         test_athlete_id = uuid.uuid4()
+        client_athlete = mock_obj(id=test_athlete_id)
+        app.dependency_overrides[get_current_athlete] = lambda: client_athlete
         invalid_start_date = "2026-13-01T00:00:00Z"
         valid_end_date = quote(datetime(2026, 1, 7, tzinfo=timezone.utc).isoformat())
 
         response = await client.get(
-            f"/myactivities/activities/{test_athlete_id}?start_date={invalid_start_date}&end_date={valid_end_date}"
+            f"/myactivities/user/activities?start_date={invalid_start_date}&end_date={valid_end_date}",
+            headers={"Authorization": "Bearer mock_token"},
         )
         assert response.status_code == 422
         assert "detail" in response.json()
@@ -151,7 +163,8 @@ async def test_get_activities_with_invalid_date_format():
         invalid_end_date = "not-a-date"
 
         response = await client.get(
-            f"/myactivities/activities/{test_athlete_id}?start_date={valid_start_date}&end_date={invalid_end_date}"
+            f"/myactivities/user/activities?start_date={valid_start_date}&end_date={invalid_end_date}",
+            headers={"Authorization": "Bearer mock_token"},
         )
         assert response.status_code == 422
 
@@ -159,8 +172,11 @@ async def test_get_activities_with_invalid_date_format():
 @pytest.mark.asyncio
 async def test_get_activities_ordering():
     """Test that activity events are returned in chronological order."""
+    from app.services.auth_service import get_current_athlete
     async with mock_app() as client:
         test_athlete_id = uuid.uuid4()
+        client_athlete = mock_obj(id=test_athlete_id)
+        app.dependency_overrides[get_current_athlete] = lambda: client_athlete
         today_event = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
         day_plus_1_event = datetime(2026, 1, 7, 12, 0, 0, tzinfo=timezone.utc)
         day_plus_2_event = datetime(2026, 1, 8, 12, 0, 0, tzinfo=timezone.utc)
@@ -216,7 +232,8 @@ async def test_get_activities_ordering():
             end_date_str = quote((day_plus_2_event + timedelta(days=1)).isoformat())
 
             response = await client.get(
-                f"/myactivities/activities/{test_athlete_id}?start_date={start_date_str}&end_date={end_date_str}"
+                f"/myactivities/user/activities?start_date={start_date_str}&end_date={end_date_str}",
+                headers={"Authorization": "Bearer mock_token"},
             )
 
             assert response.status_code == 200
@@ -235,12 +252,16 @@ async def test_get_activities_ordering():
 @pytest.mark.asyncio
 async def test_get_activities_missing_start_date():
     """Test retrieving activities with a missing start_date query parameter."""
+    from app.services.auth_service import get_current_athlete
     async with mock_app() as client:
         test_athlete_id = uuid.uuid4()
+        client_athlete = mock_obj(id=test_athlete_id)
+        app.dependency_overrides[get_current_athlete] = lambda: client_athlete
         end_date = quote(datetime(2026, 1, 7, tzinfo=timezone.utc).isoformat())
 
         response = await client.get(
-            f"/myactivities/activities/{test_athlete_id}?end_date={end_date}"
+            f"/myactivities/user/activities?end_date={end_date}",
+            headers={"Authorization": "Bearer mock_token"},
         )
         assert response.status_code == 422
 
@@ -248,14 +269,19 @@ async def test_get_activities_missing_start_date():
 @pytest.mark.asyncio
 async def test_get_activities_missing_end_date():
     """Test retrieving activities with a missing end_date query parameter."""
+    from app.services.auth_service import get_current_athlete
     async with mock_app() as client:
         test_athlete_id = uuid.uuid4()
+        client_athlete = mock_obj(id=test_athlete_id)
+        app.dependency_overrides[get_current_athlete] = lambda: client_athlete
         start_date = quote(datetime(2026, 1, 1, tzinfo=timezone.utc).isoformat())
 
         response = await client.get(
-            f"/myactivities/activities/{test_athlete_id}?start_date={start_date}"
+            f"/myactivities/user/activities?start_date={start_date}",
+            headers={"Authorization": "Bearer mock_token"},
         )
         assert response.status_code == 422
+
 
 
 @pytest.mark.asyncio

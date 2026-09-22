@@ -8,13 +8,11 @@ from app.services.auth_service import get_optional_current_athlete
 from app.db.session import get_db
 from app.ai.planner_service import (
     generate_adaptive_plan,
-    generate_adaptive_week_plan,
     confirm_adaptive_plan,
-    confirm_adaptive_week_plan,
     generate_weekly_recap,
 )
 from app.ai.load_analysis_service import calculate_athlete_training_load
-from app.schemas.activities import ConfirmPlanRequest, ConfirmWeekPlanRequest
+from app.schemas.activities import ConfirmPlanRequest
 
 router = APIRouter()
 
@@ -63,31 +61,6 @@ async def generate_plan_preview(
         raise HTTPException(status_code=500, detail=f"Planning generation failed: {str(e)}")
 
 
-@router.post("/generate-week-plan")
-async def generate_week_plan_preview(
-    week_start: datetime = Query(..., description="Start date of the target week"),
-    athlete_id: Optional[uuid.UUID] = Query(None, description="Athlete ID (optional if authenticated)"),
-    current_athlete: Optional[Athlete] = Depends(get_optional_current_athlete),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Generate an AI adaptive weekly plan preview (7 days).
-    The user can inspect and modify before confirming.
-    """
-    target_athlete_id = athlete_id or (current_athlete.id if current_athlete else None)
-    if not target_athlete_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="athlete_id query parameter or Bearer authentication is required.",
-        )
-    try:
-        return await generate_adaptive_week_plan(db, target_athlete_id, week_start)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Planning generation failed: {str(e)}")
-
-
 @router.post("/confirm-plan", status_code=status.HTTP_201_CREATED)
 async def confirm_plan_endpoint(
     plan_payload: ConfirmPlanRequest,
@@ -108,30 +81,6 @@ async def confirm_plan_endpoint(
         payload_dict["athlete_id"] = str(target_athlete_id)
         plan = await confirm_adaptive_plan(db, target_athlete_id, payload_dict)
         return {"plan_id": str(plan.id), "week_plan_id": str(plan.id), "status": plan.status}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to confirm plan: {str(e)}")
-
-
-@router.post("/confirm-week-plan", status_code=status.HTTP_201_CREATED)
-async def confirm_week_plan_endpoint(
-    plan_payload: ConfirmWeekPlanRequest,
-    current_athlete: Optional[Athlete] = Depends(get_optional_current_athlete),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Confirm and write the AI generated week plan and scheduled activities to DB.
-    """
-    target_athlete_id = plan_payload.athlete_id or (current_athlete.id if current_athlete else None)
-    if not target_athlete_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="athlete_id in request body or Bearer authentication is required.",
-        )
-    try:
-        payload_dict = plan_payload.model_dump(mode="json")
-        payload_dict["athlete_id"] = str(target_athlete_id)
-        week_plan = await confirm_adaptive_week_plan(db, target_athlete_id, payload_dict)
-        return {"week_plan_id": str(week_plan.id), "status": week_plan.status}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to confirm plan: {str(e)}")
 
