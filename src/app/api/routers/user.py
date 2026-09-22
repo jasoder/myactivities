@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, status
+from datetime import datetime
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -9,8 +10,9 @@ from app.schemas.athlete import (
     TrainingPreferenceRead,
     TrainingPreferenceUpdate,
 )
+from app.schemas.activities import ActivitiesResponse
 from app.services.auth_service import get_current_athlete
-from app.services import athlete_service
+from app.services import athlete_service, activities_service
 
 router = APIRouter()
 
@@ -46,6 +48,17 @@ async def delete_current_user_account(
     return None
 
 
+@router.delete("/strava", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_user_strava(
+    current_athlete: Athlete = Depends(get_current_athlete),
+    db: AsyncSession = Depends(get_db),
+):
+    """Disconnect Strava integration from the authenticated user's account."""
+    await athlete_service.disconnect_strava(db, current_athlete)
+    return None
+
+
+
 @router.get("/preferences", response_model=TrainingPreferenceRead)
 async def get_user_training_preferences(
     current_athlete: Athlete = Depends(get_current_athlete),
@@ -63,3 +76,18 @@ async def update_user_training_preferences(
 ):
     """Update training preferences for the authenticated user."""
     return await athlete_service.update_training_preferences(db, current_athlete.id, pref_in)
+
+
+@router.get("/activities", response_model=ActivitiesResponse)
+async def get_current_user_activities(
+    start_date: datetime = Query(..., description="Start of date range"),
+    end_date: datetime = Query(..., description="End of date range"),
+    current_athlete: Athlete = Depends(get_current_athlete),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get activity events for the authenticated user within the date range (for calendar view)."""
+    events = await activities_service.get_activities_events(
+        db, current_athlete.id, start_date, end_date
+    )
+    return ActivitiesResponse(events=events)
+

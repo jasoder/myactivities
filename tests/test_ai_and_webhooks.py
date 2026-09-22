@@ -72,6 +72,21 @@ async def test_strava_webhook_event_trigger():
 
 
 @pytest.mark.asyncio
+async def test_strava_disconnect_endpoint():
+    """Test Strava disconnect endpoint."""
+    async with mock_app() as client:
+        with patch("app.services.athlete_service.get_athlete_by_id", new_callable=AsyncMock) as mock_get, \
+             patch("app.services.athlete_service.disconnect_strava", new_callable=AsyncMock) as mock_disc:
+            mock_ath = MagicMock()
+            mock_get.return_value = mock_ath
+            res = await client.post(f"/myactivities/strava/disconnect?athlete_id={athlete_id}")
+            assert res.status_code == 200
+            assert res.json() == {"message": "Strava disconnected successfully"}
+            mock_disc.assert_called_once()
+
+
+
+@pytest.mark.asyncio
 async def test_ai_generate_week_plan_preview():
     """Test AI adaptive scheduling plan generation endpoint."""
     async with mock_app() as client:
@@ -330,6 +345,46 @@ async def test_ai_weekly_recap_with_duration():
             assert res.status_code == 200
             assert res.json()["duration_days"] == 14
             assert res.json()["compliance_rate"] == 80.0
+
+
+@pytest.mark.asyncio
+async def test_ai_generate_and_confirm_plan_authenticated_self():
+    """Test generating and confirming a plan using JWT authentication without athlete_id."""
+    from app.services.auth_service import get_optional_current_athlete
+    from app.models.athlete import Athlete
+
+    mock_athlete = mock_obj(id=athlete_id, spec=Athlete)
+
+    async with mock_app() as client:
+        app.dependency_overrides[get_optional_current_athlete] = lambda: mock_athlete
+        with patch("app.api.routers.ai.generate_adaptive_plan", new_callable=AsyncMock) as mock_gen, \
+             patch("app.api.routers.ai.confirm_adaptive_plan", new_callable=AsyncMock) as mock_confirm:
+
+            mock_gen.return_value = {
+                "athlete_id": str(athlete_id),
+                "start_date": week_start.isoformat(),
+                "duration_days": 7,
+                "reasoning": "Self-service plan",
+                "workouts": [],
+            }
+            plan_id = uuid.uuid4()
+            mock_confirm.return_value = mock_obj(id=plan_id, status="confirmed")
+
+            # 1. Generate without athlete_id in URL
+            gen_url = f"/myactivities/ai/generate-plan?start_date={quote(week_start.isoformat())}"
+            res_gen = await client.post(gen_url, headers={"Authorization": "Bearer mock_token"})
+            assert res_gen.status_code == 200
+            assert res_gen.json()["athlete_id"] == str(athlete_id)
+
+            # 2. Confirm without athlete_id in body
+            conf_payload = {
+                "start_date": week_start.isoformat(),
+                "workouts": [],
+            }
+            res_conf = await client.post("/myactivities/ai/confirm-plan", json=conf_payload, headers={"Authorization": "Bearer mock_token"})
+            assert res_conf.status_code == 201
+            assert res_conf.json()["plan_id"] == str(plan_id)
+
 
 
 
