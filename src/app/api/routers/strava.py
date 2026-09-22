@@ -40,22 +40,6 @@ async def strava_oauth_callback(
         raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
 
 
-@router.post("/disconnect")
-async def disconnect_strava_endpoint(
-    db: AsyncSession = Depends(get_db),
-    athlete_id: uuid.UUID | None = Query(None, description="Athlete ID (optional if authenticated)"),
-):
-    """Disconnect Strava integration for an athlete."""
-    from app.services import athlete_service
-    if not athlete_id:
-        raise HTTPException(status_code=400, detail="athlete_id is required")
-    athlete = await athlete_service.get_athlete_by_id(db, athlete_id)
-    if not athlete:
-        raise HTTPException(status_code=404, detail="Athlete not found")
-    await athlete_service.disconnect_strava(db, athlete)
-    return {"message": "Strava disconnected successfully"}
-
-
 @router.post("/sync")
 async def sync_strava_activities(
     athlete_id: str = Query(..., description="Athlete ID"),
