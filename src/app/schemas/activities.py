@@ -138,9 +138,3 @@ class ConfirmPlanRequest(BaseModel):
             }
         }
     )
-
-
-ConfirmWeekPlanRequest = ConfirmPlanRequest
-
-
-

@@ -30,9 +30,3 @@ class ActivitySource(StrEnum):
     STRAVA = "strava"
     MANUAL = "manual"
     AI_GENERATED = "ai_generated"
-
-class LogLevels(StrEnum):
-    info = "INFO"
-    warn = "WARN"
-    error = "ERROR"
-    debug = "DEBUG"
