@@ -129,3 +129,13 @@ async def handle_strava_oauth_callback(
         "connected": True,
         "strava_connected": True,
     }
+
+
+async def disconnect_strava(db: AsyncSession, athlete: Athlete) -> Athlete:
+    athlete.strava_id = None
+    athlete.access_token = None
+    athlete.refresh_token = None
+    athlete.token_expires_at = None
+    await db.commit()
+    await db.refresh(athlete)
+    return athlete

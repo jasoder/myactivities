@@ -72,6 +72,21 @@ async def test_strava_webhook_event_trigger():
 
 
 @pytest.mark.asyncio
+async def test_strava_disconnect_endpoint():
+    """Test Strava disconnect endpoint."""
+    async with mock_app() as client:
+        with patch("app.services.athlete_service.get_athlete_by_id", new_callable=AsyncMock) as mock_get, \
+             patch("app.services.athlete_service.disconnect_strava", new_callable=AsyncMock) as mock_disc:
+            mock_ath = MagicMock()
+            mock_get.return_value = mock_ath
+            res = await client.post(f"/myactivities/strava/disconnect?athlete_id={athlete_id}")
+            assert res.status_code == 200
+            assert res.json() == {"message": "Strava disconnected successfully"}
+            mock_disc.assert_called_once()
+
+
+
+@pytest.mark.asyncio
 async def test_ai_generate_week_plan_preview():
     """Test AI adaptive scheduling plan generation endpoint."""
     async with mock_app() as client:

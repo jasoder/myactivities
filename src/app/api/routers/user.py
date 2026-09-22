@@ -48,6 +48,17 @@ async def delete_current_user_account(
     return None
 
 
+@router.delete("/strava", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_user_strava(
+    current_athlete: Athlete = Depends(get_current_athlete),
+    db: AsyncSession = Depends(get_db),
+):
+    """Disconnect Strava integration from the authenticated user's account."""
+    await athlete_service.disconnect_strava(db, current_athlete)
+    return None
+
+
+
 @router.get("/preferences", response_model=TrainingPreferenceRead)
 async def get_user_training_preferences(
     current_athlete: Athlete = Depends(get_current_athlete),

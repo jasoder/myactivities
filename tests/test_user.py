@@ -230,3 +230,24 @@ async def test_get_user_activities():
             finally:
                 app.dependency_overrides.pop(get_current_athlete, None)
 
+
+@pytest.mark.asyncio
+async def test_disconnect_user_strava():
+    test_id = uuid.uuid4()
+    mock_athlete = make_mock_athlete(athlete_id=test_id)
+    mock_athlete.strava_id = "123456"
+
+    async with mock_app() as client:
+        app.dependency_overrides[get_current_athlete] = lambda: mock_athlete
+        with patch("app.services.athlete_service.disconnect_strava", new_callable=AsyncMock) as mock_disc:
+            try:
+                res = await client.delete(
+                    "/myactivities/user/strava",
+                    headers={"Authorization": "Bearer mock_token"},
+                )
+                assert res.status_code == 204
+                mock_disc.assert_called_once()
+            finally:
+                app.dependency_overrides.pop(get_current_athlete, None)
+
+
