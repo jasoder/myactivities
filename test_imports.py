@@ -7,30 +7,30 @@ print("Testing imports...")
 
 try:
     from app.db.base import Base
-    print("✓ db.base imports OK")
+    print("OK: db.base imports")
 
     from app.models.athlete import Athlete
-    print("✓ models.athlete imports OK")
+    print("OK: models.athlete imports")
 
     from app.models.activities import Activity, WeekPlan, TrainingPreference
-    print("✓ models.activities imports OK")
+    print("OK: models.activities imports")
 
     from app.services.strava_sync_service import sync_athlete_activities
-    print("✓ services.strava_sync_service imports OK")
+    print("OK: services.strava_sync_service imports")
 
     from app.api.routers.strava import router
-    print("✓ api.routers.strava imports OK")
+    print("OK: api.routers.strava imports")
 
     from app.api.api_router import api_router
-    print("✓ api.api_router imports OK")
+    print("OK: api.api_router imports")
 
     from app.main import app
-    print("✓ app.main imports OK (FastAPI app created)")
+    print("OK: app.main imports (FastAPI app created)")
 
-    print("\n✅ All imports successful! The app should run cleanly.")
+    print("\nSUCCESS: All imports successful! The app should run cleanly.")
 
 except Exception as e:
-    print(f"\n❌ Import error: {e}")
+    print(f"\nERROR: Import error: {e}")
     import traceback
     traceback.print_exc()
     sys.exit(1)

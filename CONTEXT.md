@@ -20,10 +20,10 @@ Optional 1:1 table linked to `Activity` via FK. Only populated when `status=comp
 The process of matching Strava activities with planned activities by sport type and date. When a match is found, the planned Activity is updated to `status=completed` and linked via `matched_strava_activity_id`. When no match is found, a new `Activity(status=completed, source=strava)` is created.
 
 ### Adaptive Scheduling
-AI-powered feature (powered by Claude API) that analyzes completed workouts and adjusts future training plans. Generates next week's workouts based on historical performance data and training load.
+AI-powered feature that analyzes completed workouts and adjusts future training plans. Generates workouts for arbitrary horizons (1 to 60 days, e.g. 7-day microcycles or 28-day 4-week blocks with deload) based on historical performance data and training load (CTL, ATL, TSB).
 
 ### WeekPlan
-Groups 7 planned activities generated together by the AI planning service. Used for scoping replans to "everything in this week_plan not yet reconciled."
+Database entity grouping planned activities generated together by the AI planning service. Scopes planning blocks and reconciliations by `(athlete_id, week_start_date)`.
 
 ### TrainingPreference
 One row per athlete storing sport targets, rest days, and weekly limits. Used by the AI planning service to understand user constraints.
@@ -31,8 +31,8 @@ One row per athlete storing sport targets, rest days, and weekly limits. Used by
 ### Reconciliation
 The process of matching completed workouts (from Strava) with planned calendar workouts. Uses sport type, duration, and date to auto-match. A manual option exists to link or unlink workouts if the automatic match is incorrect.
 
-### Big Bang Migration
-Migration approach where legacy tables (`completed_activities`, `planned_activities`) and their associated services and routes are removed entirely in one step, replacing them with the unified `activities` table.
+### Unified Migration
+Migration where legacy tables (`completed_activities`, `planned_activities`), redundant routes (`/athletes`, legacy AI endpoints), and unauthenticated endpoints were replaced with a clean, authenticated architecture.
 
 ## Decisions
 
@@ -41,10 +41,10 @@ Migration approach where legacy tables (`completed_activities`, `planned_activit
 | Unified Activity table | Single table for all activities simplifies calendar queries and avoids joins |
 | Split core + metrics | Metrics only apply to completed activities; keeping them separate avoids NULL columns for planned activities |
 | Status-based model | `status` field (planned/completed/missed/modified) captures activity lifecycle; `planned_date` and `actual_date` capture intent vs reality |
-| Big bang migration | Legacy code is minimal; cleaning up in one pass is faster than maintaining dual systems |
-| Delete legacy routes | Single `/activities` endpoint is cleaner API; reduces maintenance burden |
-| Frontend Phase 2 | React Native + Web frontend is deferred; backend API is the MVP foundation |
-| AI adaptive scheduling | Claude API-powered workflow: analyze completed → generate adjustments → user confirms → writes to DB |
+| Composite DB Indexes | `(athlete_id, planned_date)`, `(athlete_id, actual_date)`, `(athlete_id, status)`, and `(athlete_id, week_start_date)` ensure fast range queries at scale |
+| Arbitrary Plan Horizons | AI planner supports 1–60 days, enabling full month (4-week periodized) plan generation with deload weeks |
+| Bearer JWT Auth | Secure email/password authentication with argon2 hashing and current user inference eliminates unauthenticated IDOR risks |
+| Multi-provider AI Client | Supports OpenAI-compatible endpoints, Anthropic messages format, and physiological fallback generators |
 
 ## Edge Cases & Scenarios
 
@@ -102,11 +102,11 @@ Only set when `source=manual` or `source=ai_generated`. Not populated from Strav
 
 | Scenario | Auto-match? | Manual action needed? |
 |----------|-------------|----------------------|
-| Strava activity matches planned by sport + date ±1 day | ✅ Yes | No |
-| Strava activity matches but duration differs >50% | ⚠️ Partial | User confirms/rejects |
-| Two Strava activities match one planned | ⚠️ Partial | User picks correct one |
-| Strava activity has no planned match | ❌ No | User can link to nearby plan |
-| Planned activity has no Strava match after date passes | ❌ No | Auto-missed or user marks completed |
+| Strava activity matches planned by sport + date ±1 day | Yes | No |
+| Strava activity matches but duration differs >50% | Partial | User confirms/rejects |
+| Two Strava activities match one planned | Partial | User picks correct one |
+| Strava activity has no planned match | No | User can link to nearby plan |
+| Planned activity has no Strava match after date passes | No | Auto-missed or user marks completed |
 
 ## Activity Status Flow Diagram
 
@@ -133,11 +133,13 @@ Only set when `source=manual` or `source=ai_generated`. Not populated from Strav
 
 | Domain Term | Code Location |
 |-------------|---------------|
-| Activity | `src/app/models/activities.py` (Activity class) |
-| ActivityMetric | New table to create (not yet in code) |
-| ActivityStatus | `src/app/models/activities.py` (ActivityStatus enum) |
-| WeekPlan | `src/app/models/activities.py` (WeekPlan class) |
-| TrainingPreference | `src/app/models/activities.py` (TrainingPreference class) |
-| Strava Sync | `src/app/services/strava_sync_service.py` |
-| Adaptive Scheduling | Future: `src/app/ai/` (not yet implemented) |
-| Big Bang Migration | Pending: delete legacy models/services/routes |
+| Activity | `src/app/models/activities.py` (`Activity` model) |
+| ActivityMetric | `src/app/models/activities.py` (`ActivityMetric` model) |
+| ActivityStatus / Source | `src/app/enums.py` (`ActivityStatus`, `ActivitySource`) |
+| WeekPlan | `src/app/models/activities.py` (`WeekPlan` model) |
+| TrainingPreference | `src/app/models/activities.py` (`TrainingPreference` model) |
+| Athlete / User | `src/app/models/athlete.py` (`Athlete` model) |
+| Authentication | `src/app/core/security.py`, `src/app/services/auth_service.py` |
+| Strava Sync & Webhooks | `src/app/services/strava_sync_service.py`, `src/app/integrations/strava/client.py` |
+| Adaptive Scheduling & Plans | `src/app/ai/planner_service.py`, `src/app/ai/client.py` |
+| Training Load Analytics | `src/app/ai/load_analysis_service.py` |
