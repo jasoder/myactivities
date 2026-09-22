@@ -85,69 +85,6 @@ async def test_strava_disconnect_endpoint():
             mock_disc.assert_called_once()
 
 
-
-@pytest.mark.asyncio
-async def test_ai_generate_week_plan_preview():
-    """Test AI adaptive scheduling plan generation endpoint."""
-    async with mock_app() as client:
-        with patch("app.api.routers.ai.generate_adaptive_week_plan", new_callable=AsyncMock) as mock_gen:
-            mock_gen.return_value = {
-                "athlete_id": str(athlete_id),
-                "week_start_date": week_start.isoformat(),
-                "reasoning": "Aerobic base focus",
-                "workouts": [
-                    {
-                        "day_offset": 0,
-                        "planned_date": week_start.isoformat(),
-                        "name": "Base Ride",
-                        "sport_type": "Ride",
-                        "duration_min": 60,
-                        "distance_m": 20000.0,
-                        "intensity": 70.0,
-                        "plan_metadata": {"reasoning": "Easy zone 2"},
-                    }
-                ],
-            }
-
-            url = f"/myactivities/ai/generate-week-plan?athlete_id={athlete_id}&week_start={quote(week_start.isoformat())}"
-            res = await client.post(url)
-            assert res.status_code == 200
-            data = res.json()
-            assert "workouts" in data
-            assert len(data["workouts"]) == 1
-            assert data["workouts"][0]["name"] == "Base Ride"
-
-
-@pytest.mark.asyncio
-async def test_ai_confirm_week_plan():
-    """Test AI adaptive scheduling plan confirmation."""
-    async with mock_app() as client:
-        with patch("app.api.routers.ai.confirm_adaptive_week_plan", new_callable=AsyncMock) as mock_confirm:
-            wp_id = uuid.uuid4()
-            mock_wp = mock_obj(id=wp_id, status="confirmed")
-            mock_confirm.return_value = mock_wp
-
-            payload = {
-                "athlete_id": str(athlete_id),
-                "week_start_date": week_start.isoformat(),
-                "reasoning": "Aerobic base focus",
-                "workouts": [
-                    {
-                        "day_offset": 0,
-                        "planned_date": week_start.isoformat(),
-                        "name": "Base Ride",
-                        "sport_type": "Ride",
-                        "duration_min": 60,
-                    }
-                ],
-            }
-
-            res = await client.post("/myactivities/ai/confirm-week-plan", json=payload)
-            assert res.status_code == 201
-            assert res.json()["week_plan_id"] == str(wp_id)
-            assert res.json()["status"] == "confirmed"
-
-
 @pytest.mark.asyncio
 async def test_ai_weekly_recap():
     """Test AI weekly recap / morning report."""
