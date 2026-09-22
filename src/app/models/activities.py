@@ -5,7 +5,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, Enum, ForeignKey, func
+from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, Enum, ForeignKey, func, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +21,11 @@ class Activity(Base):
     activities in a single table for efficient calendar querying.
     """
     __tablename__ = "activities"
+    __table_args__ = (
+        Index("idx_activities_athlete_planned", "athlete_id", "planned_date"),
+        Index("idx_activities_athlete_actual", "athlete_id", "actual_date"),
+        Index("idx_activities_athlete_status", "athlete_id", "status"),
+    )
 
     # Core identifiers
     id: Mapped[uuid.UUID] = mapped_column(
@@ -127,6 +132,9 @@ class WeekPlan(Base):
     Allows scoping replans to 'everything in this week_plan not yet reconciled'.
     """
     __tablename__ = "week_plans"
+    __table_args__ = (
+        Index("idx_week_plans_athlete_start", "athlete_id", "week_start_date"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

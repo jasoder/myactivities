@@ -11,9 +11,9 @@ class AIClient:
         api_url: Optional[str] = None,
         model: Optional[str] = None,
     ):
-        self.api_key = api_key or os.getenv("AI_API_KEY", "")
-        self.api_url = api_url or os.getenv("AI_API_URL", "")
-        self.model = model or os.getenv("AI_MODEL", "")
+        self.api_key = os.getenv("AI_API_KEY", "") if api_key is None else api_key
+        self.api_url = os.getenv("AI_API_URL", "") if api_url is None else api_url
+        self.model = os.getenv("AI_MODEL", "") if model is None else model
 
     async def generate_json(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
         if not self.api_url:
@@ -97,46 +97,142 @@ class AIClient:
 
 
     def _fallback_response(self, user_prompt: str) -> Dict[str, Any]:
+        import re
+        duration = 7
+        match = re.search(r"(\d+)-day", user_prompt)
+        if match:
+            duration = int(match.group(1))
+        else:
+            match = re.search(r"Duration:\s*(\d+)", user_prompt)
+            if match:
+                duration = int(match.group(1))
+
+        templates = [
+            {
+                "name": "Base Endurance Ride",
+                "sport_type": "Ride",
+                "target_duration_min": 60,
+                "target_distance_m": 25000.0,
+                "target_intensity": 70.0,
+                "structure": {
+                    "warmup": {"duration_min": 10, "description": "Easy spinning"},
+                    "main_set": [{"intervals": 1, "duration_min": 40, "intensity": "Zone 2", "recovery_min": 0}],
+                    "cooldown": {"duration_min": 10, "description": "Cool down spin"},
+                },
+                "reasoning": "Building aerobic capacity",
+            },
+            {
+                "name": "Tempo Run",
+                "sport_type": "Run",
+                "target_duration_min": 45,
+                "target_distance_m": 8000.0,
+                "target_intensity": 85.0,
+                "structure": {
+                    "warmup": {"duration_min": 10, "description": "Easy jog"},
+                    "main_set": [{"intervals": 3, "duration_min": 8, "intensity": "tempo", "recovery_min": 2}],
+                    "cooldown": {"duration_min": 5, "description": "Walking cool down"},
+                },
+                "reasoning": "Lactate threshold stimulus",
+            },
+            {
+                "name": "Active Recovery & Mobility",
+                "sport_type": "Other",
+                "target_duration_min": 30,
+                "target_distance_m": 0.0,
+                "target_intensity": 50.0,
+                "structure": {
+                    "warmup": {"duration_min": 5, "description": "Dynamic stretching"},
+                    "main_set": [{"intervals": 1, "duration_min": 20, "intensity": "mobility & core", "recovery_min": 0}],
+                    "cooldown": {"duration_min": 5, "description": "Static stretch"},
+                },
+                "reasoning": "Promote recovery and soft tissue health",
+            },
+            {
+                "name": "VO2 Max Interval Ride",
+                "sport_type": "Ride",
+                "target_duration_min": 50,
+                "target_distance_m": 22000.0,
+                "target_intensity": 90.0,
+                "structure": {
+                    "warmup": {"duration_min": 15, "description": "Progressive warm-up"},
+                    "main_set": [{"intervals": 5, "duration_min": 3, "intensity": "Zone 5", "recovery_min": 3}],
+                    "cooldown": {"duration_min": 10, "description": "Easy spinning"},
+                },
+                "reasoning": "High aerobic capacity expansion",
+            },
+            {
+                "name": "Easy Aerobic Run",
+                "sport_type": "Run",
+                "target_duration_min": 40,
+                "target_distance_m": 7000.0,
+                "target_intensity": 65.0,
+                "structure": {
+                    "warmup": {"duration_min": 5, "description": "Brisk walk"},
+                    "main_set": [{"intervals": 1, "duration_min": 30, "intensity": "Zone 2", "recovery_min": 0}],
+                    "cooldown": {"duration_min": 5, "description": "Cool down walk"},
+                },
+                "reasoning": "Aerobic conditioning without neuromuscular fatigue",
+            },
+            {
+                "name": "Long Weekend Ride",
+                "sport_type": "Ride",
+                "target_duration_min": 90,
+                "target_distance_m": 40000.0,
+                "target_intensity": 70.0,
+                "structure": {
+                    "warmup": {"duration_min": 10, "description": "Gradual spin up"},
+                    "main_set": [{"intervals": 1, "duration_min": 70, "intensity": "Zone 2 endurance", "recovery_min": 0}],
+                    "cooldown": {"duration_min": 10, "description": "Gentle spin down"},
+                },
+                "reasoning": "Long duration mitochondrial and endurance stimulus",
+            },
+            {
+                "name": "Rest & Regeneration",
+                "sport_type": "Other",
+                "target_duration_min": 20,
+                "target_distance_m": 0.0,
+                "target_intensity": 35.0,
+                "structure": {
+                    "warmup": {"duration_min": 5, "description": "Breathwork"},
+                    "main_set": [{"intervals": 1, "duration_min": 15, "intensity": "Yoga / foam rolling", "recovery_min": 0}],
+                    "cooldown": {"duration_min": 0, "description": "Rest"},
+                },
+                "reasoning": "Complete physiological adaptation and rest",
+            },
+        ]
+
+        workouts = []
+        for day in range(duration):
+            template = templates[day % len(templates)]
+            week_idx = day // 7
+            is_deload = (week_idx == 3)  # Week 4 deload in 28-day blocks
+            multiplier = 0.7 if is_deload else (1.0 + (week_idx * 0.05))
+            
+            dur = max(20, int(template["target_duration_min"] * multiplier))
+            dist = round(template["target_distance_m"] * multiplier, 1) if template["target_distance_m"] else 0.0
+
+            workouts.append({
+                "day_offset": day,
+                "name": f"{template['name']}" if duration <= 7 else f"W{week_idx + 1} {template['name']}",
+                "sport_type": template["sport_type"],
+                "target_duration_min": dur,
+                "target_distance_m": dist,
+                "target_intensity": template["target_intensity"],
+                "plan_metadata": {
+                    "structure": template["structure"],
+                    "target_duration_min": dur,
+                    "target_intensity": template["target_intensity"],
+                    "reasoning": template["reasoning"],
+                    "week_number": week_idx + 1,
+                    "is_deload": is_deload,
+                },
+            })
+
+        period_desc = f"{duration}-day progressive block" if duration > 7 else "7-day microcycle"
         return {
-            "reasoning": "Progressive overload building aerobic base and recovery.",
-            "workouts": [
-                {
-                    "day_offset": 0,
-                    "name": "Base Endurance Ride",
-                    "sport_type": "Ride",
-                    "target_duration_min": 60,
-                    "target_distance_m": 25000.0,
-                    "target_intensity": 70.0,
-                    "plan_metadata": {
-                        "structure": {
-                            "warmup": {"duration_min": 10, "description": "Easy spinning"},
-                            "main_set": [{"intervals": 1, "duration_min": 40, "intensity": "Zone 2", "recovery_min": 0}],
-                            "cooldown": {"duration_min": 10, "description": "Cool down spin"},
-                        },
-                        "target_duration_min": 60,
-                        "target_intensity": "endurance",
-                        "reasoning": "Building aerobic capacity",
-                    },
-                },
-                {
-                    "day_offset": 1,
-                    "name": "Tempo Run",
-                    "sport_type": "Run",
-                    "target_duration_min": 45,
-                    "target_distance_m": 8000.0,
-                    "target_intensity": 85.0,
-                    "plan_metadata": {
-                        "structure": {
-                            "warmup": {"duration_min": 10, "description": "Easy jog"},
-                            "main_set": [{"intervals": 3, "duration_min": 8, "intensity": "tempo", "recovery_min": 2}],
-                            "cooldown": {"duration_min": 5, "description": "Walking cool down"},
-                        },
-                        "target_duration_min": 45,
-                        "target_intensity": "tempo",
-                        "reasoning": "Lactate threshold stimulus",
-                    },
-                },
-            ],
+            "reasoning": f"Periodized training strategy with progressive overload and recovery for a {period_desc}.",
+            "workouts": workouts,
         }
+
 
 

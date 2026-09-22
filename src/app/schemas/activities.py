@@ -100,24 +100,29 @@ class ConfirmWeekPlanWorkout(BaseModel):
     name: str = "Base Endurance Run"
     sport_type: str = "Run"
     duration_min: Optional[int] = 60
-    target_distance_m: Optional[float] = 10000.0
-    target_intensity: Optional[float] = 70.0
+    distance_m: Optional[float] = None
+    target_distance_m: Optional[float] = None
+    intensity: Optional[float] = None
+    target_intensity: Optional[float] = None
     description: Optional[str] = "Zone 2 aerobic base stimulus"
     plan_metadata: Optional[Dict[str, Any]] = None
 
 
-class ConfirmWeekPlanRequest(BaseModel):
+class ConfirmPlanRequest(BaseModel):
     athlete_id: UUID
-    week_start_date: datetime
-    reasoning: Optional[str] = "Aerobic base building"
+    start_date: Optional[datetime] = None
+    week_start_date: Optional[datetime] = None
+    duration_days: Optional[int] = 7
+    reasoning: Optional[str] = "Adaptive training plan"
     workouts: List[ConfirmWeekPlanWorkout]
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "athlete_id": "00000000-0000-0000-0000-000000000000",
-                "week_start_date": "2026-09-08T00:00:00Z",
-                "reasoning": "Progressive aerobic build week",
+                "start_date": "2026-09-08T00:00:00Z",
+                "duration_days": 28,
+                "reasoning": "4-week periodized build block with deload",
                 "workouts": [
                     {
                         "day_offset": 0,
@@ -125,23 +130,17 @@ class ConfirmWeekPlanRequest(BaseModel):
                         "name": "Base Endurance Run",
                         "sport_type": "Run",
                         "duration_min": 60,
-                        "target_distance_m": 10000.0,
-                        "target_intensity": 70.0,
+                        "distance_m": 10000.0,
+                        "intensity": 70.0,
                         "description": "Zone 2 aerobic pace",
-                    },
-                    {
-                        "day_offset": 2,
-                        "planned_date": "2026-09-10T08:00:00Z",
-                        "name": "Tempo Ride",
-                        "sport_type": "Ride",
-                        "duration_min": 45,
-                        "target_distance_m": 20000.0,
-                        "target_intensity": 85.0,
-                        "description": "Sweet spot intervals",
-                    },
+                    }
                 ],
             }
         }
     )
+
+
+ConfirmWeekPlanRequest = ConfirmPlanRequest
+
 
 

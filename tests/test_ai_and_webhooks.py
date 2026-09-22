@@ -223,6 +223,116 @@ async def test_ai_client_fallback_and_custom_providers():
         assert mock_post.call_args[1]["json"]["model"] == "llama3.2"
 
 
+@pytest.mark.asyncio
+async def test_ai_generate_plan_preview_arbitrary_duration():
+    """Test AI adaptive scheduling plan generation for arbitrary durations (e.g. 28 days / 1 month)."""
+    custom_start = datetime(2026, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
+    async with mock_app() as client:
+        with patch("app.api.routers.ai.generate_adaptive_plan", new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = {
+                "athlete_id": str(athlete_id),
+                "start_date": custom_start.isoformat(),
+                "duration_days": 28,
+                "reasoning": "4-week periodized mesocycle",
+                "workouts": [
+                    {
+                        "day_offset": i,
+                        "planned_date": (custom_start + timedelta(days=i)).isoformat(),
+                        "name": f"Workout Day {i}",
+                        "sport_type": "Ride",
+                        "duration_min": 60,
+                    }
+                    for i in range(28)
+                ],
+            }
+
+            url = f"/myactivities/ai/generate-plan?athlete_id={athlete_id}&start_date={quote(custom_start.isoformat())}&duration_days=28"
+            res = await client.post(url)
+            assert res.status_code == 200
+            data = res.json()
+            assert data["duration_days"] == 28
+            assert len(data["workouts"]) == 28
+            assert data["workouts"][27]["name"] == "Workout Day 27"
+
+
+@pytest.mark.asyncio
+async def test_ai_confirm_plan_multi_week():
+    """Test confirming a multi-week plan."""
+    custom_start = datetime(2026, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
+    async with mock_app() as client:
+        with patch("app.api.routers.ai.confirm_adaptive_plan", new_callable=AsyncMock) as mock_confirm:
+            plan_id = uuid.uuid4()
+            mock_plan = mock_obj(id=plan_id, status="confirmed")
+            mock_confirm.return_value = mock_plan
+
+            payload = {
+                "athlete_id": str(athlete_id),
+                "start_date": custom_start.isoformat(),
+                "duration_days": 14,
+                "reasoning": "Two-week block",
+                "workouts": [
+                    {
+                        "day_offset": i,
+                        "planned_date": (custom_start + timedelta(days=i)).isoformat(),
+                        "name": f"Session {i}",
+                        "sport_type": "Run",
+                        "duration_min": 45,
+                    }
+                    for i in range(14)
+                ],
+            }
+
+            res = await client.post("/myactivities/ai/confirm-plan", json=payload)
+            assert res.status_code == 201
+            assert res.json()["plan_id"] == str(plan_id)
+            assert res.json()["status"] == "confirmed"
+
+
+@pytest.mark.asyncio
+async def test_ai_fallback_custom_durations():
+    """Test AIClient fallback generation for 7 days and 28 days."""
+    from app.ai.client import AIClient
+    client = AIClient(api_url="")
+
+    # 7-day test
+    res_7 = await client.generate_json("System", "Generate 7-day schedule")
+    assert len(res_7["workouts"]) == 7
+    assert res_7["workouts"][0]["day_offset"] == 0
+    assert res_7["workouts"][6]["day_offset"] == 6
+
+    # 28-day test
+    res_28 = await client.generate_json("System", "Duration: 28 days schedule")
+    assert len(res_28["workouts"]) == 28
+    assert res_28["workouts"][0]["day_offset"] == 0
+    assert res_28["workouts"][27]["day_offset"] == 27
+    assert res_28["workouts"][27]["plan_metadata"]["week_number"] == 4
+    assert res_28["workouts"][27]["plan_metadata"]["is_deload"] is True
+
+
+@pytest.mark.asyncio
+async def test_ai_weekly_recap_with_duration():
+    """Test AI recap with custom duration."""
+    async with mock_app() as client:
+        with patch("app.api.routers.ai.generate_weekly_recap", new_callable=AsyncMock) as mock_recap:
+            mock_recap.return_value = {
+                "athlete_id": str(athlete_id),
+                "start_date": week_start.isoformat(),
+                "duration_days": 14,
+                "planned_sessions": 10,
+                "completed_sessions": 8,
+                "compliance_rate": 80.0,
+                "total_completed_hours": 12.0,
+                "summary": "Completed 8 sessions.",
+            }
+
+            url = f"/myactivities/ai/weekly-recap/{athlete_id}?week_start={quote(week_start.isoformat())}&duration_days=14"
+            res = await client.get(url)
+            assert res.status_code == 200
+            assert res.json()["duration_days"] == 14
+            assert res.json()["compliance_rate"] == 80.0
+
+
+
 
 
 
