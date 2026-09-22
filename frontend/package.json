@@ -4,11 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "api:generate": "node scripts/generate-api.js",
+    "predev": "npm run api:generate",
     "dev": "vite",
+    "prebuild": "npm run api:generate",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview",
-    "api:generate": "openapi-typescript http://localhost:8000/api/v1/docs/openapi.json -o src/api/schema.d.ts"
+    "preview": "vite preview"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0",
