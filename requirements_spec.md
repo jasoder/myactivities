@@ -10,30 +10,28 @@
 
 ## Authentication and Onboarding
 
-- **OAuth-only login** with no username/password registration
-- Initial Strava OAuth integration (MVP)
-- Onboarding imports initial training history from Strava and sets user preferences
-- Each athlete has unique OAuth credentials stored securely
-- Google and Apple OAuth planned for Phase 2
+- **Email & Password Authentication**: Standard JWT Bearer token authentication with argon2 password hashing.
+  - `POST /auth/register` creates account and returns JWT token.
+  - `POST /auth/login` validates credentials and returns JWT token.
+- **Strava OAuth integration**: Optional integration for syncing training history and receiving real-time webhooks.
+- Authenticated user endpoints under `/user` provide self-service profile and preference management.
+- Google and Apple OAuth planned for Phase 2.
 
 ## Landing Page and Calendar
 
-- Focuses on the current week (Monday to Sunday)
-- Current week strip is shown at the top of the landing page
-- Bottom navigation bar houses main tabs
-- Users can swipe horizontally to navigate back to history or forward to planned weeks
-- Weekly calendar view with day-by-day workout grid
-- Calendar populates from the unified `/activities` endpoint, filtering by `status` and `planned_date`
+- Focuses on the current training window (day, week, or month views).
+- Calendar populates from `GET /myactivities/user/activities?start_date=...&end_date=...` for the authenticated athlete.
+- Activities contain `status` (`planned`, `completed`, `missed`, `modified`) and timestamp fields (`planned_date`, `actual_date`).
+- Interactive workout management: Create manual workouts (`POST /activities`), drag-and-drop reschedule (`PUT /activities/{id}`), view details (`GET /activities/detail/{id}`), or delete (`DELETE /activities/{id}`).
 
 ## AI Features and Adaptive Scheduling
 
-- **Adaptive scheduling**: Analyzes completed workouts and adjusts future plans based on performance data
-- Automatically calculates historical training load from synced Strava data
-- Allows manual user overrides for training experience, weekly hour targets, and goals
-- Adjusts future training schedules dynamically based on performance data
-- Generates next week's workouts during the weekly recap or when triggered by the user
-- Powered by Claude API (Anthropic) for workout planning and reasoning
-- AI outputs changes as a preview; user confirms before writing to database
+- **Adaptive scheduling**: Analyzes historical activities and calculates training load (CTL, ATL, TSB).
+- Supports flexible planning durations from 1 to 60 days (e.g. 7-day microcycle, 28-day 4-week block with deload week).
+- Generates structured workout previews via `POST /ai/generate-plan` (backed by LLM or deterministic fallback).
+- User inspects and confirms via `POST /ai/confirm-plan`, writing activities directly to the database.
+- Weekly recap and coach commentary via `GET /ai/weekly-recap`.
+- Supported LLM providers: Anthropic messages API, OpenAI-compatible chat completions, or intelligent fallback templates.
 
 ## Workouts
 
@@ -116,67 +114,42 @@ Groups the 7 planned rows generated together by Claude's planning service.
 One row per athlete storing training preferences used by the AI planning service.
 
 ## API Endpoints (Backend)
+ 
+Mounted at `/api/v1` with prefix `/myactivities`:
+- `/myactivities/auth` - User registration and authentication (`/register`, `/login`)
+- `/myactivities/user` - Authenticated athlete profile, preferences, calendar activities, and Strava disconnect
+- `/myactivities/activities` - Activity CRUD operations (`/`, `/detail/{id}`, `/{id}`)
+- `/myactivities/strava` - Strava OAuth flow, manual sync (`/sync`), and webhook ingestion (`/webhook`)
+- `/myactivities/ai` - AI planning (`/generate-plan`, `/confirm-plan`), training load analytics (`/training-load`), and weekly recaps (`/weekly-recap`)
 
-- `/myactivities/athletes` - Athlete management with OAuth flow
-- `/myactivities/activities` - Unified activities view (single endpoint for all activity types)
-  - `GET /{athlete_id}?start_date=&end_date=` - Returns calendar events combining planned + completed activities
-- `/myactivities/strava` - Strava integration webhooks and OAuth callback
-
-**No legacy routes**: `/completedActivities` and `/plannedActivities` have been removed. All activity data flows through `/activities`.
+**No legacy routes**: `/completedActivities`, `/plannedActivities`, and unauthenticated `/athletes` endpoints have been removed.
 
 ## Database Migration Strategy
 
-**Big bang migration**: Legacy tables (`completed_activities`, `planned_activities`) and their associated services, schemas, and API routes are removed. All activity data moves to the unified `activities` table.
-
-- Legacy models deleted: `CompletedActivity`, `PlannedActivity`
-- Legacy services deleted: `completed_activity_service`, `planned_activity_service`
-- Legacy routes deleted: `/completedActivities`, `/plannedActivities`
-- All services updated to use unified `Activity` model
-- Athlete model relationships updated to remove legacy references
+**Unified Activity Model**: Legacy tables (`completed_activities`, `planned_activities`) and their associated services, schemas, and API routes have been removed. All activity data moves through the unified `activities` table with composite DB indexes:
+- `idx_activities_athlete_planned (athlete_id, planned_date)`
+- `idx_activities_athlete_actual (athlete_id, actual_date)`
+- `idx_activities_athlete_status (athlete_id, status)`
+- `idx_week_plans_athlete_start (athlete_id, week_start_date)`
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | Database connection string |
-| `STRAVA_CLIENT_ID` | Yes (MVP) | Strava OAuth client ID |
-| `STRAVA_CLIENT_SECRET` | Yes (MVP) | Strava OAuth client secret |
-| `ANTHROPIC_API_KEY` | Yes | Claude API key for AI features |
-| Additional OAuth keys | Optional | Google/Apple client IDs for Phase 2 |
+| `SECRET_KEY` | Yes | Secret key for JWT signing |
+| `STRAVA_CLIENT_ID` | Optional | Strava OAuth client ID |
+| `STRAVA_CLIENT_SECRET` | Optional | Strava OAuth client secret |
+| `STRAVA_VERIFY_TOKEN` | Optional | Verification token for Strava webhooks |
+| `AI_API_URL` | Optional | URL for AI service (OpenAI-compatible or Anthropic endpoint) |
+| `AI_API_KEY` | Optional | API key for AI provider |
+| `AI_MODEL` | Optional | Model identifier for AI completions |
+| `ALLOWED_ORIGINS` | Optional | Allowed CORS origins for frontend |
 
 ## Running Tests
 
 ```bash
 pytest
-# Or specific test files
-pytest tests/unit/test_*.py
-```
-
-## Docker Compose
-
-```yaml
-services:
-  db:
-    image: postgres:14
-    environment:
-      POSTGRES_DB: myactivities
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: myactivities
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-  api:
-    build: ./src
-    depends_on:
-      - db
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:myactivities@db:5432/myactivities
-      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID}
-      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-    ports:
-      - "8000:8000"
-volumes:
-  pg_data:
 ```
 
 ## Project Structure
@@ -185,38 +158,31 @@ volumes:
 src/
 ├── app/
 │   ├── main.py              # FastAPI app entry point
+│   ├── core/                # Core configuration & security (JWT, argon2)
 │   ├── api/
 │   │   ├── api_router.py    # Main router
-│   │   └── routers/         # API endpoints (athletes, activities, strava)
+│   │   └── routers/         # API endpoints (auth, user, activities, strava, ai)
 │   ├── db/
 │   │   ├── base.py          # SQLAlchemy base
+│   │   ├── session.py       # DB session manager
 │   │   └── manage.py        # Database initialization
 │   ├── models/              # SQLAlchemy models (Activity, ActivityMetric, WeekPlan, TrainingPreference, Athlete)
-│   ├── schemas/             # Pydantic schemas
-│   ├── services/            # Business logic (activities_service, athlete_service, strava_sync_service)
-│   ├── integrations/        # External integrations (Strava)
-│   └── ai/                  # AI assistant services (adaptive scheduling)
-├── tests/
-│   ├── unit/
-│   └── integration/
-├── scripts/
-│   ├── seed_db.py
-│   └── init_db.py
+│   ├── schemas/             # Pydantic schemas (activities, athlete, auth, errors)
+│   ├── services/            # Business logic (activities_service, athlete_service, auth_service, strava_sync_service)
+│   ├── integrations/        # External integrations (Strava client)
+│   └── ai/                  # AI assistant services (planner_service, load_analysis_service, client)
+├── tests/                   # Pytest test suite
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
 └── requirements_spec.md
 ```
 
-## TODO: Frontend Implementation
+## AI Integration Details (Implemented)
 
-The React Native + React Native Web frontend is planned as a separate but coordinated effort. The backend API is the foundation; frontend work follows the architecture defined in this spec. *(Phase 2)*
-
-## TODO: AI Integration Details
-
-The AI adaptive scheduling feature requires:
-1. `src/app/ai/` directory with Claude API client
-2. Training load analysis service that reads completed activities and generates adjustments
-3. Workout planning service that creates `Activity` records with `plan_metadata`
-4. Confirmation flow: AI outputs preview → user confirms → writes to database
-5. Weekly recap generation based on completed vs planned activities
+The AI adaptive scheduling feature includes:
+1. `src/app/ai/client.py`: Multi-provider AI client supporting Anthropic, OpenAI-compatible APIs, and built-in physiological fallback generators.
+2. `src/app/ai/load_analysis_service.py`: Training load analysis service calculating Chronic Training Load (CTL), Acute Training Load (ATL), and Training Stress Balance (TSB).
+3. `src/app/ai/planner_service.py`: Arbitrary duration plan generator (1 to 60 days) with periodization and deload cycles.
+4. Confirmation flow: AI outputs preview (`POST /ai/generate-plan`) → user inspects/edits → user confirms (`POST /ai/confirm-plan`) → writes `Activity` records to database.
+5. Weekly recap generation (`GET /ai/weekly-recap`) analyzing planned vs actual workouts and volume adherence.
