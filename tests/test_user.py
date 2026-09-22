@@ -191,3 +191,42 @@ async def test_update_user_preferences():
                 assert data["sport_targets"] == {"Ride": 4}
             finally:
                 app.dependency_overrides.pop(get_current_athlete, None)
+
+
+@pytest.mark.asyncio
+async def test_get_user_activities():
+    test_id = uuid.uuid4()
+    mock_athlete = make_mock_athlete(athlete_id=test_id)
+    start_dt = datetime(2026, 9, 1, 0, 0, 0, tzinfo=timezone.utc)
+    end_dt = datetime(2026, 9, 30, 23, 59, 59, tzinfo=timezone.utc)
+
+    async with mock_app() as client:
+        app.dependency_overrides[get_current_athlete] = lambda: mock_athlete
+        with patch("app.services.activities_service.get_activities_events", new_callable=AsyncMock) as mock_events:
+            from app.schemas.activities import ActivitiesEntry, ActivitiesSummary
+            act_id = uuid.uuid4()
+            mock_events.return_value = [
+                ActivitiesEntry(
+                    id=act_id,
+                    date=start_dt,
+                    title="Morning Run",
+                    type="Run",
+                    status="completed",
+                    data=ActivitiesSummary(distance_m=5000.0, duration_s=1800, training_load=65.0),
+                )
+            ]
+            try:
+                from urllib.parse import quote
+                res = await client.get(
+                    f"/myactivities/user/activities?start_date={quote(start_dt.isoformat())}&end_date={quote(end_dt.isoformat())}",
+                    headers={"Authorization": "Bearer mock_token"},
+                )
+                assert res.status_code == 200
+                data = res.json()
+                assert len(data["events"]) == 1
+                assert data["events"][0]["title"] == "Morning Run"
+                assert data["events"][0]["type"] == "Run"
+                assert data["events"][0]["data"]["distance_m"] == 5000.0
+            finally:
+                app.dependency_overrides.pop(get_current_athlete, None)
+
