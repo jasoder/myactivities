@@ -109,7 +109,7 @@ class ConfirmWeekPlanWorkout(BaseModel):
 
 
 class ConfirmPlanRequest(BaseModel):
-    athlete_id: UUID
+    athlete_id: Optional[UUID] = None
     start_date: Optional[datetime] = None
     week_start_date: Optional[datetime] = None
     duration_days: Optional[int] = 7

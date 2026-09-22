@@ -125,3 +125,33 @@ async def get_current_athlete(
         )
 
     return athlete
+
+
+async def get_optional_current_athlete(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[Athlete]:
+    """FastAPI dependency to extract the authenticated athlete if present, otherwise returns None."""
+    if not credentials or not credentials.credentials:
+        return None
+
+    token = credentials.credentials.strip().strip("\"'")
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip().strip("\"'")
+
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+
+    athlete_id_str = payload.get("sub")
+    if not athlete_id_str:
+        return None
+
+    try:
+        athlete_id = uuid.UUID(athlete_id_str)
+    except ValueError:
+        return None
+
+    result = await db.execute(select(Athlete).where(Athlete.id == athlete_id))
+    return result.scalar_one_or_none()
+
