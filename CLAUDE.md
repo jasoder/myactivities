@@ -3,11 +3,11 @@
 This file provides guidance when working with code in this repository.
 
 **Common Development Commands:**
-- 🛠️ **Install dependencies**: `pip install -r requirements.txt`
-- ▶️ **Start server**: `cd src && uvicorn app.main:app --reload`
-- 🧪 **Run test suite**: `pytest`
-- 📋 **Run specific test**: `pytest tests/test_user.py`
-- 🐳 **Run with Docker Compose**: `docker compose up --build -d`
+- **Install dependencies**: `pip install -r requirements.txt`
+- **Start server**: `cd src && uvicorn app.main:app --reload`
+- **Run test suite**: `pytest`
+- **Run specific test**: `pytest tests/test_user.py`
+- **Run with Docker Compose**: `docker compose up --build -d`
 
 **Code Architecture Overview:**
 1. **Technology Stack**

@@ -102,11 +102,11 @@ Only set when `source=manual` or `source=ai_generated`. Not populated from Strav
 
 | Scenario | Auto-match? | Manual action needed? |
 |----------|-------------|----------------------|
-| Strava activity matches planned by sport + date ±1 day | ✅ Yes | No |
-| Strava activity matches but duration differs >50% | ⚠️ Partial | User confirms/rejects |
-| Two Strava activities match one planned | ⚠️ Partial | User picks correct one |
-| Strava activity has no planned match | ❌ No | User can link to nearby plan |
-| Planned activity has no Strava match after date passes | ❌ No | Auto-missed or user marks completed |
+| Strava activity matches planned by sport + date ±1 day | Yes | No |
+| Strava activity matches but duration differs >50% | Partial | User confirms/rejects |
+| Two Strava activities match one planned | Partial | User picks correct one |
+| Strava activity has no planned match | No | User can link to nearby plan |
+| Planned activity has no Strava match after date passes | No | Auto-missed or user marks completed |
 
 ## Activity Status Flow Diagram
 
