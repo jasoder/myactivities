@@ -4,11 +4,13 @@ A FastAPI backend for tracking athlete activities with Strava integration.
 
 ## Architecture
 
-- **FastAPI** - Modern, fast web framework
-- **SQLAlchemy** - Async ORM for database operations
-- **PostgreSQL** - Primary database
-- **Docker** - Containerized database and application
-- **React** - Frontend (separate repo)
+- **FastAPI** - Asynchronous web framework mounted at `/api/v1`
+- **SQLAlchemy 2.0 & PostgreSQL** - Async ORM and relational database with composite indexes
+- **JWT & Argon2id** - Secure Bearer token authentication
+- **AI Adaptive Engine** - Multi-provider adaptive training plan generation (1-60 days)
+- **Strava Integration** - OAuth token management, on-demand synchronization, and webhook events
+- **React 19 + TypeScript + Vite** - Frontend client located in `frontend/` with dynamic OpenAPI types
+- **Docker Compose** - Containerized database and backend application
 
 ## Quick Start
 
@@ -70,7 +72,33 @@ If you prefer to run locally:
    uvicorn app.main:app --reload
    ```
 
-### Running Tests
+### Frontend Development (React + TypeScript)
+
+The frontend is located in the `frontend/` directory and communicates with the backend via a typed `openapi-fetch` client.
+
+1. **Install frontend dependencies:**
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. **Start the development server with HMR:**
+   ```bash
+   npm run dev
+   ```
+   The frontend will be available at `http://localhost:5173`. Before starting, `npm run dev` automatically runs `predev` to pull the latest schema dynamically from the running backend.
+
+3. **Build and type check:**
+   ```bash
+   npm run build
+   ```
+
+4. **Regenerate API types manually (if needed):**
+   ```bash
+   npm run api:generate
+   ```
+
+### Running Backend Tests
 
 ```bash
 pytest
