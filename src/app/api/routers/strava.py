@@ -40,11 +40,16 @@ async def strava_oauth_callback(
         raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
 
 
+from typing import Optional
+from app.services.auth_service import get_optional_current_athlete
+
+
 @router.post("/sync")
 async def sync_strava_activities(
-    athlete_id: str = Query(..., description="Athlete ID"),
+    athlete_id: Optional[str] = Query(None, description="Athlete ID (optional if authenticated)"),
     force: bool = Query(False, description="Force full sync ignoring last sync time"),
     limit: int = Query(50, description="Maximum number of activities to sync"),
+    current_athlete: Optional[Athlete] = Depends(get_optional_current_athlete),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -54,11 +59,17 @@ async def sync_strava_activities(
     If force=false (default), only syncs activities since last sync.
     If force=true, does a full sync of all activities.
     """
+    target_athlete_id = athlete_id or (str(current_athlete.id) if current_athlete else None)
+    if not target_athlete_id:
+        raise HTTPException(
+            status_code=400,
+            detail="athlete_id query parameter or Bearer authentication is required",
+        )
     try:
         # Import here to avoid circular imports
         from app.services.strava_sync_service import sync_athlete_activities
 
-        result = await sync_athlete_activities(athlete_id, db, force=force, limit=limit)
+        result = await sync_athlete_activities(target_athlete_id, db, force=force, limit=limit)
         return {
             "message": "Sync completed",
             "processed": result.get("processed", 0),

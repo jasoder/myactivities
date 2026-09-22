@@ -72,6 +72,32 @@ async def test_strava_webhook_event_trigger():
 
 
 @pytest.mark.asyncio
+async def test_strava_sync_authenticated():
+    """Test on-demand Strava sync using JWT authentication without athlete_id parameter."""
+    from app.services.auth_service import get_optional_current_athlete
+    from app.models.athlete import Athlete
+
+    mock_athlete = mock_obj(id=athlete_id, spec=Athlete)
+
+    async with mock_app() as client:
+        app.dependency_overrides[get_optional_current_athlete] = lambda: mock_athlete
+        with patch("app.services.strava_sync_service.sync_athlete_activities", new_callable=AsyncMock) as mock_sync:
+            mock_sync.return_value = {
+                "processed": 5,
+                "new": 2,
+                "skipped": 3,
+                "last_synced_at": datetime.now(timezone.utc).isoformat(),
+            }
+            res = await client.post("/myactivities/strava/sync", headers={"Authorization": "Bearer mock_token"})
+            assert res.status_code == 200
+            data = res.json()
+            assert data["processed"] == 5
+            assert data["new"] == 2
+            mock_sync.assert_called_once()
+
+
+
+@pytest.mark.asyncio
 async def test_ai_weekly_recap():
     """Test AI weekly recap / morning report."""
     async with mock_app() as client:
