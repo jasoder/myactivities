@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, Activity, Plus, Settings } from "lucide-react";
+import { Sparkles, TrendingUp, Plus, User } from "lucide-react";
 
 interface BottomToolbarProps {
   onOpenAI: () => void;
@@ -15,43 +15,49 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
   onOpenSettings,
 }) => {
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40">
-      <nav aria-label="Bottom Navigation" className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#282a36]/90 border border-[#44475a] shadow-2xl backdrop-blur-xl">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40">
+      <nav
+        aria-label="Bottom Navigation"
+        className="flex items-center gap-1 p-1 rounded-lg bg-[#282a36]/95 border border-[#44475a]/80 shadow-xl backdrop-blur-md"
+      >
         {/* AI Assistant */}
         <button
           onClick={onOpenAI}
-          className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#bd93f9] hover:bg-[#bd93f9]/15 transition-all flex items-center gap-1.5"
+          className="px-3 py-1.5 rounded-md text-xs font-medium text-[#bd93f9] hover:bg-[#bd93f9]/15 transition-all flex items-center gap-1.5"
+          title="AI Coach Chat"
         >
-          <Sparkles className="w-4 h-4" />
-          <span>Ask AI</span>
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>AI Coach</span>
         </button>
 
         {/* Load / Analytics */}
         <button
           onClick={onOpenAnalytics}
-          className="px-3 py-2 rounded-xl text-xs font-medium text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/40 transition-all flex items-center gap-1.5"
+          className="px-3 py-1.5 rounded-md text-xs font-medium text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/40 transition-all flex items-center gap-1.5"
+          title="Training Load & Readiness"
         >
-          <Activity className="w-4 h-4 text-[#50fa7b]" />
+          <TrendingUp className="w-3.5 h-3.5 text-[#50fa7b]" />
           <span>Load</span>
         </button>
 
         {/* Add Workout (+) */}
         <button
           onClick={onOpenAddWorkout}
-          className="p-2.5 rounded-xl bg-[#bd93f9] hover:bg-[#caa5fb] text-[#282a36] shadow-lg shadow-[#bd93f9]/25 transition-all"
+          className="p-1.5 rounded-md bg-[#bd93f9] hover:bg-[#caa5fb] text-[#282a36] transition-all font-semibold"
           title="Add Workout"
           aria-label="Add Workout"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
         </button>
 
-        {/* Strava & Settings */}
+        {/* Athlete Profile & Preferences */}
         <button
           onClick={onOpenSettings}
-          className="px-3 py-2 rounded-xl text-xs font-medium text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/40 transition-all flex items-center gap-1.5"
+          className="px-3 py-1.5 rounded-md text-xs font-medium text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/40 transition-all flex items-center gap-1.5"
+          title="Athlete Profile, Goals & Preferences"
         >
-          <Settings className="w-4 h-4 text-[#8be9fd]" />
-          <span>Settings</span>
+          <User className="w-3.5 h-3.5 text-[#8be9fd]" />
+          <span>Athlete</span>
         </button>
       </nav>
     </div>

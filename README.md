@@ -41,6 +41,22 @@ To stop and remove the containers (the database volume persists):
 docker compose down
 ```
 
+### Inspecting the Database with PostgreSQL CLI (`psql`)
+
+To view tables, check schemas, and query data directly inside the PostgreSQL container:
+
+1. **Enter the `psql` console:**
+   ```bash
+   docker compose exec db psql -U postgres -d myactivities-test
+   ```
+2. **Common `psql` commands:**
+   - `\dt` — List all tables (`activities`, `athletes`, `activity_metrics`, `week_plans`, `training_preferences`)
+   - `\d activities` — View table schema, columns, and indexes
+   - `\x auto` — Toggle clean vertical/card output for wide rows
+   - `SELECT id, name, sport_type, status, planned_date FROM activities;` — Query workouts
+   - `SELECT id, email, name, strava_connected FROM athletes;` — Query athletes
+   - `\q` — Exit `psql`
+
 ### Local Development (without Docker)
 
 If you prefer to run locally:
@@ -107,19 +123,26 @@ pytest
 ### Project Structure
 
 ```
-src/
-├── app/
-│   ├── main.py              # FastAPI app entry point
-│   ├── api/
-│   │   ├── api_router.py    # Main router
-│   │   └── routers/         # API endpoints
-│   ├── db/
-│   │   ├── base.py          # SQLAlchemy base
-│   │   └── manage.py        # Database initialization
-│   ├── models/              # SQLAlchemy models
-│   ├── schemas/             # Pydantic schemas
-│   ├── services/            # Business logic
-│   └── integrations/        # External integrations (Strava)
+├── frontend/                # React 19 + TypeScript + Vite app
+│   ├── src/
+│   │   ├── api/             # Typed openapi-fetch client and dynamic schemas
+│   │   ├── components/      # UI components (Calendar, AI Chat, Analytics, Workouts)
+│   │   ├── context/         # AuthContext & JWT session provider
+│   │   └── hooks/           # TanStack React Query hooks
+│   └── package.json
+├── src/
+│   └── app/
+│       ├── main.py          # FastAPI app entry point
+│       ├── core/            # Security (JWT, Argon2id) & configuration
+│       ├── api/             # Routers (auth, user, activities, strava, ai)
+│       ├── db/              # SQLAlchemy session & database initialization
+│       ├── models/          # ORM models (Activity, Athlete, ActivityMetric, WeekPlan)
+│       ├── schemas/         # Pydantic validation schemas
+│       ├── services/        # Business logic & Strava sync service
+│       └── ai/              # Multi-provider LLM client, planner, & load analysis
+├── tests/                   # Pytest test suite (39 unit tests)
+├── docker-compose.yml       # PostgreSQL & API container configuration
+└── requirements.txt
 ```
 
 ### API Endpoints

@@ -1,5 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type ActivityCreate, type ActivityUpdate, type ConfirmPlanRequest } from "../api/client";
+import {
+  api,
+  type ActivityCreate,
+  type ActivityUpdate,
+  type ConfirmPlanRequest,
+  type AthleteUpdate,
+  type TrainingPreferenceUpdate
+} from "../api/client";
 
 export function useActivities(startDate: string, endDate: string, enabled = true) {
   return useQuery({
@@ -167,3 +174,48 @@ export function useSyncStrava() {
     },
   });
 }
+
+export function useTrainingPreferences(enabled = true) {
+  return useQuery({
+    queryKey: ["user-preferences"],
+    queryFn: async () => {
+      const { data, error } = await api.GET("/myactivities/user/preferences");
+      if (error) throw new Error((error as any)?.detail || "Failed to fetch preferences");
+      return data;
+    },
+    enabled,
+  });
+}
+
+export function useUpdatePreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (prefs: TrainingPreferenceUpdate) => {
+      const { data, error } = await api.PUT("/myactivities/user/preferences", {
+        body: prefs,
+      });
+      if (error) throw new Error((error as any)?.detail || "Failed to update preferences");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-preferences"] });
+    },
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (profile: AthleteUpdate) => {
+      const { data, error } = await api.PUT("/myactivities/user", {
+        body: profile,
+      });
+      if (error) throw new Error((error as any)?.detail || "Failed to update profile");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+    },
+  });
+}
+

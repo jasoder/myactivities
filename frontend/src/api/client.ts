@@ -43,6 +43,7 @@ api.use({
 export type Schema<T extends keyof components["schemas"]> = components["schemas"][T];
 
 export type Athlete = Schema<"AthleteRead">;
+export type AthleteUpdate = Schema<"AthleteUpdate">;
 export type Activity = Schema<"ActivityRead">;
 export type ActivitiesResponse = Schema<"ActivitiesResponse">;
 export type ActivitiesEntry = Schema<"ActivitiesEntry">;

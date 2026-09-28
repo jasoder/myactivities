@@ -45,6 +45,7 @@ Migration where legacy tables (`completed_activities`, `planned_activities`), re
 | Arbitrary Plan Horizons | AI planner supports 1–60 days, enabling full month (4-week periodized) plan generation with deload weeks |
 | Bearer JWT Auth | Secure email/password authentication with argon2 hashing and current user inference eliminates unauthenticated IDOR risks |
 | Multi-provider AI Client | Supports OpenAI-compatible endpoints, Anthropic messages format, and physiological fallback generators |
+| React SPA with Dracula UI | Modern React 19 + TypeScript SPA in `frontend/` with Dracula palette, TanStack Query, and typed openapi-fetch client provides responsive mobile and desktop training dashboard |
 
 ## Edge Cases & Scenarios
 
@@ -143,3 +144,8 @@ Only set when `source=manual` or `source=ai_generated`. Not populated from Strav
 | Strava Sync & Webhooks | `src/app/services/strava_sync_service.py`, `src/app/integrations/strava/client.py` |
 | Adaptive Scheduling & Plans | `src/app/ai/planner_service.py`, `src/app/ai/client.py` |
 | Training Load Analytics | `src/app/ai/load_analysis_service.py` |
+| Frontend Calendar & Workouts | `frontend/src/components/calendar/CalendarStrip.tsx`, `frontend/src/components/workout/` |
+| Frontend AI Coach Chat | `frontend/src/components/chat/AIChatDrawer.tsx` |
+| Frontend Readiness & Load | `frontend/src/components/analytics/TrainingLoadDrawer.tsx` |
+| Frontend Auth & State | `frontend/src/context/AuthContext.tsx`, `frontend/src/components/auth/AuthScreen.tsx` |
+| Frontend API Client & Queries | `frontend/src/api/client.ts`, `frontend/src/hooks/useQueries.ts` |
