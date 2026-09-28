@@ -125,13 +125,22 @@ export function useDeleteActivity() {
 
 export function useGeneratePlan() {
   return useMutation({
-    mutationFn: async ({ startDate, durationDays }: { startDate: string; durationDays: number }) => {
+    mutationFn: async ({
+      startDate,
+      durationDays,
+      prompt,
+    }: {
+      startDate: string;
+      durationDays: number;
+      prompt?: string;
+    }) => {
       const { data, error } = await api.POST("/myactivities/ai/generate-plan", {
         params: {
           query: {
             start_date: `${startDate}T00:00:00Z`,
             duration_days: durationDays,
-          },
+            user_prompt: prompt || undefined,
+          } as any,
         },
       });
       if (error) throw new Error((error as any)?.detail || "Plan generation failed");

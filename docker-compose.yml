@@ -17,6 +17,8 @@ services:
 
   app:
     build: .
+    volumes:
+      - ./src:/app
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:myactivities@db:5432/myactivities-test
       AI_API_URL: ${AI_API_URL:-}

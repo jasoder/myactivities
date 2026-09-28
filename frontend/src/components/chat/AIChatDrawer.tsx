@@ -70,6 +70,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ isOpen, onClose }) =
       const plan = await generateMutation.mutateAsync({
         startDate: startDateStr,
         durationDays: duration,
+        prompt: userMsg.text,
       });
 
       const aiResponse: ChatMessage = {

@@ -357,6 +357,143 @@ async def test_ai_generate_and_confirm_plan_authenticated_self():
             assert res_conf.json()["plan_id"] == str(plan_id)
 
 
+@pytest.mark.asyncio
+async def test_ai_plan_honors_preferences_and_sports():
+    """Verify that AI plan generation strictly honors athlete preferred sports, rest days, and volume."""
+    from app.ai.planner_service import generate_adaptive_plan
+    from app.models.athlete import Athlete
+    from app.models.activities import TrainingPreference
+
+    # Monday start date (2026-03-02 was a Monday)
+    monday_start = datetime(2026, 3, 2, 0, 0, 0, tzinfo=timezone.utc)
+    mock_prefs = mock_obj(
+        max_days_per_week=5,
+        rest_day_preference=["Monday", "Friday"],
+        split_notes="Targeting sub-40min 10k",
+        sport_targets={},
+    )
+    mock_athlete = mock_obj(
+        id=athlete_id,
+        name="Runner Alex",
+        preferred_sports=["Run"],
+        weekly_training_hours=7.0,
+        training_preferences=mock_prefs,
+        ftp=None,
+        threshold_pace=4.2,
+        weight=68.0,
+        max_hr=195,
+        lthr=174,
+    )
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = MagicMock(scalar_one_or_none=MagicMock(return_value=mock_athlete))
+
+    with patch.dict("os.environ", {"AI_API_KEY": "", "AI_API_URL": ""}, clear=True):
+        plan = await generate_adaptive_plan(
+            mock_db,
+            athlete_id,
+            start_date=monday_start,
+            duration_days=7,
+            user_prompt="Focus on 10k interval pace",
+        )
+
+    assert len(plan["workouts"]) == 7
+
+    # Day 0 (Monday) should be rest day
+    assert plan["workouts"][0]["sport_type"] == "Other"
+    assert "Rest" in plan["workouts"][0]["name"]
+    assert plan["workouts"][0]["duration_min"] == 0
+
+    # Day 4 (Friday) should be rest day
+    assert plan["workouts"][4]["sport_type"] == "Other"
+    assert "Rest" in plan["workouts"][4]["name"]
+    assert plan["workouts"][4]["duration_min"] == 0
+
+    # Active days MUST all be 'Run' (since preferred_sports=['Run'])
+    active_workouts = [w for w in plan["workouts"] if w["duration_min"] > 0]
+    assert len(active_workouts) == 5  # Exactly 5 active days (max_days=5, 2 rest days)
+    for w in active_workouts:
+        assert w["sport_type"] == "Run"
+        assert w["sport_type"] != "Ride"
+
+    # Volume should sum close to 7 hours = 420 minutes (±15%)
+    total_minutes = sum(w["duration_min"] for w in active_workouts)
+    assert 350 <= total_minutes <= 490
+
+    # Reasoning incorporates athlete preferences
+    assert "Run" in plan["reasoning"]
+
+
+@pytest.mark.asyncio
+async def test_ai_plan_guardrails_sanitize_rogue_sports():
+    """Verify that planner_service guardrails catch rogue sports and enforce rest days even if LLM outputs Ride."""
+    from app.ai.planner_service import generate_adaptive_plan
+    from app.models.athlete import Athlete
+    from app.models.activities import TrainingPreference
+
+    monday_start = datetime(2026, 3, 2, 0, 0, 0, tzinfo=timezone.utc)
+    mock_prefs = mock_obj(
+        max_days_per_week=6,
+        rest_day_preference=["Friday"],
+        split_notes="Strength and running only",
+        sport_targets={},
+    )
+    mock_athlete = mock_obj(
+        id=athlete_id,
+        name="Hybrid Athlete",
+        preferred_sports=["Run", "WeightTraining"],
+        weekly_training_hours=6.0,
+        training_preferences=mock_prefs,
+        ftp=None,
+        threshold_pace=None,
+        weight=75.0,
+        max_hr=None,
+        lthr=None,
+    )
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = MagicMock(scalar_one_or_none=MagicMock(return_value=mock_athlete))
+
+    # Simulate an LLM that ignored instructions and produced "Ride" sessions
+    rogue_ai_output = {
+        "reasoning": "Rogue plan with bike rides",
+        "workouts": [
+            {"day_offset": 0, "name": "Long Ride", "sport_type": "Ride", "target_duration_min": 90, "target_intensity": 70},
+            {"day_offset": 1, "name": "Run Intervals", "sport_type": "Run", "target_duration_min": 60, "target_intensity": 80},
+            {"day_offset": 2, "name": "Recovery Ride", "sport_type": "Ride", "target_duration_min": 45, "target_intensity": 60},
+            {"day_offset": 3, "name": "Heavy Lift", "sport_type": "WeightTraining", "target_duration_min": 60, "target_intensity": 85},
+            {"day_offset": 4, "name": "Friday Big Ride", "sport_type": "Ride", "target_duration_min": 120, "target_intensity": 80},  # Should be forced to rest!
+            {"day_offset": 5, "name": "Weekend Bike Tour", "sport_type": "Ride", "target_duration_min": 100, "target_intensity": 75},
+            {"day_offset": 6, "name": "Mobility Lift", "sport_type": "WeightTraining", "target_duration_min": 45, "target_intensity": 60},
+        ],
+    }
+
+    with patch("app.ai.planner_service.AIClient.generate_json", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = rogue_ai_output
+        plan = await generate_adaptive_plan(
+            mock_db,
+            athlete_id,
+            start_date=monday_start,
+            duration_days=7,
+        )
+
+    assert len(plan["workouts"]) == 7
+
+    # Friday (Day 4) must be converted to rest despite LLM outputting 120m Friday Big Ride
+    friday = plan["workouts"][4]
+    assert friday["sport_type"] == "Other"
+    assert friday["name"] == "Rest & Recovery"
+    assert friday["duration_min"] == 0
+
+    # NO workout may have sport_type "Ride"
+    for w in plan["workouts"]:
+        assert w["sport_type"] != "Ride", f"Rogue sport was not sanitized: {w}"
+        if w["duration_min"] > 0:
+            assert w["sport_type"] in ["Run", "WeightTraining"]
+
+
+
+
 
 
 

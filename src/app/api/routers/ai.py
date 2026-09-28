@@ -40,6 +40,7 @@ async def generate_plan_preview(
     start_date: datetime = Query(..., description="Start date of the training plan"),
     athlete_id: Optional[uuid.UUID] = Query(None, description="Athlete ID (optional if authenticated)"),
     duration_days: int = Query(7, ge=1, le=60, description="Plan duration in days (e.g. 7 for 1 week, 28 for 1 month)"),
+    user_prompt: Optional[str] = Query(None, description="Custom athlete guidance, coaching adjustments, or specific chat request"),
     current_athlete: Optional[Athlete] = Depends(get_optional_current_athlete),
     db: AsyncSession = Depends(get_db),
 ):
@@ -54,7 +55,13 @@ async def generate_plan_preview(
             detail="athlete_id query parameter or Bearer authentication is required.",
         )
     try:
-        return await generate_adaptive_plan(db, target_athlete_id, start_date=start_date, duration_days=duration_days)
+        return await generate_adaptive_plan(
+            db,
+            target_athlete_id,
+            start_date=start_date,
+            duration_days=duration_days,
+            user_prompt=user_prompt,
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

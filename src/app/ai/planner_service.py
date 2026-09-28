@@ -11,6 +11,7 @@ from app.models.activities import Activity, ActivityMetric, WeekPlan, TrainingPr
 from app.enums import ActivitySource
 from app.ai.client import AIClient
 from app.ai.load_analysis_service import calculate_athlete_training_load
+from app.services import athlete_service
 
 
 async def generate_adaptive_plan(
@@ -18,10 +19,11 @@ async def generate_adaptive_plan(
     athlete_id: uuid.UUID,
     start_date: datetime,
     duration_days: int = 7,
+    user_prompt: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Analyzes historical load and athlete constraints, generates preview plan for any start date and duration.
-    Supports 7-day microcycles up to multi-week/monthly mesocycles (e.g. 28 days).
+    Strictly incorporates athlete preferred sports, rest days, weekly volume, max days per week, and custom prompt.
     """
     # 1. Fetch athlete and preferences
     res = await db.execute(
@@ -34,7 +36,28 @@ async def generate_adaptive_plan(
         raise ValueError(f"Athlete {athlete_id} not found")
 
     prefs: Optional[TrainingPreference] = athlete.training_preferences
+    if not prefs:
+        prefs = await athlete_service.get_or_create_training_preferences(db, athlete.id)
+
     load_summary = await calculate_athlete_training_load(db, athlete_id, days_back=28)
+
+    preferred_sports = athlete.preferred_sports or ["Run", "Ride"]
+    weekly_hours = athlete.weekly_training_hours if athlete.weekly_training_hours is not None else 6.0
+    max_days = prefs.max_days_per_week if prefs and prefs.max_days_per_week is not None else 6
+    rest_days = prefs.rest_day_preference or []
+    split_notes = prefs.split_notes or ""
+    sport_targets = prefs.sport_targets or {}
+
+    # Map out calendar days with dates and designated rest days
+    calendar_days = []
+    for day in range(duration_days):
+        day_date = start_date + timedelta(days=day)
+        weekday_name = day_date.strftime("%A")
+        is_rest = weekday_name in rest_days
+        calendar_days.append(
+            f"Day offset {day}: {day_date.strftime('%Y-%m-%d')} ({weekday_name}) - {'REST DAY' if is_rest else 'Active training eligible'}"
+        )
+    calendar_context = "\n".join(calendar_days)
 
     period_type = (
         f"{duration_days}-day training mesocycle block (with progressive overload and periodized recovery/deload)"
@@ -44,62 +67,105 @@ async def generate_adaptive_plan(
 
     system_prompt = (
         "You are an expert endurance sports coach specializing in adaptive training periodization. "
-        f"Create a personalized {period_type} matching the athlete's load and preferences. "
+        f"Create a personalized {period_type} matching the athlete's load and preferences.\n\n"
+        "STRICT COACHING CONSTRAINTS:\n"
+        f"1. SPORTS: You MUST ONLY prescribe workouts for sports listed in the athlete's Preferred Sports list: {preferred_sports}. "
+        "Do NOT schedule any other sports. If only one sport is listed, every active workout must be that sport.\n"
+        f"2. REST DAYS: The athlete has designated these rest days: {rest_days}. On these days, you MUST schedule complete rest "
+        "(name: 'Rest & Recovery', sport_type: 'Other', target_duration_min: 0, target_intensity: 0) or light active recovery/mobility (max 20 min). "
+        "Never schedule hard or normal workouts on designated rest days.\n"
+        f"3. FREQUENCY: Do NOT exceed {max_days} active training sessions in any 7-day period.\n"
+        f"4. VOLUME: Total workout minutes across each 7-day week must approximately equal {int(weekly_hours * 60)} minutes ({weekly_hours} hours) ±10%.\n"
+        f"5. FOCUS & NOTES: Incorporate the athlete's training focus ({split_notes}) and specific user request into session designs.\n"
+        "6. METRICS: Use the athlete's FTP, threshold pace, max HR, and LTHR to calibrate intensity zones and targets.\n\n"
         "Respond ONLY with a JSON object matching this schema:\n"
         "{\n"
-        '  "reasoning": "string explaining the training periodization strategy",\n'
+        '  "reasoning": "string explaining how the plan fulfills the athlete\'s preferences, volume targets, and periodization strategy",\n'
         '  "workouts": [\n'
         "    {\n"
         '      "day_offset": 0,\n'
-        '      "name": "Base Endurance Ride",\n'
-        '      "sport_type": "Ride",\n'
+        '      "name": "Session Name",\n'
+        '      "sport_type": "Run",\n'
         '      "target_duration_min": 60,\n'
-        '      "target_distance_m": 25000,\n'
-        '      "target_intensity": 70,\n'
+        '      "target_distance_m": 10000,\n'
+        '      "target_intensity": 75,\n'
         '      "plan_metadata": {\n'
         '        "structure": {\n'
-        '          "warmup": {"duration_min": 10, "description": "Easy spinning"},\n'
-        '          "main_set": [{"intervals": 1, "duration_min": 40, "intensity": "Zone 2", "recovery_min": 0}],\n'
-        '          "cooldown": {"duration_min": 10, "description": "Easy spinning"}\n'
-        "        }\n"
+        '          "warmup": {"duration_min": 10, "description": "Easy warm-up"},\n'
+        '          "main_set": [{"intervals": 4, "duration_min": 5, "intensity": "Zone 4 Threshold", "recovery_min": 2}],\n'
+        '          "cooldown": {"duration_min": 10, "description": "Easy cool-down"}\n'
+        "        },\n"
+        '        "target_duration_min": 60,\n'
+        '        "target_intensity": 75,\n'
+        '        "reasoning": "Targeted endurance stimulus"\n'
         "      }\n"
         "    }\n"
         "  ]\n"
         "}"
     )
 
-    user_prompt = f"""
+    user_prompt_text = f"""
 Athlete: {athlete.name or 'Athlete'}
-Weekly training hours target: {athlete.weekly_training_hours or 'Adaptive based on history'}
-Max days per week: {prefs.max_days_per_week if prefs else 7}
-Preferences: {prefs.sport_targets if prefs else {}}
-Rest days preference: {prefs.rest_day_preference if prefs else []}
+Preferred Sports: {preferred_sports}
+Weekly Training Hours Target: {weekly_hours} hours/week ({int(weekly_hours * 60)} minutes/week)
+Max Days Per Week: {max_days} days/week
+Designated Rest Days: {rest_days}
+Training Focus & Split Notes: {split_notes or 'None specified'}
+Athlete Request / Chat Prompt: {user_prompt or 'None specified'}
+Performance Metrics: FTP={athlete.ftp or 'N/A'}W, Pace={athlete.threshold_pace or 'N/A'} min/km, Weight={athlete.weight or 'N/A'}kg, MaxHR={athlete.max_hr or 'N/A'}bpm, LTHR={athlete.lthr or 'N/A'}bpm
+Sport Targets: {sport_targets}
 Recent 4-week load summary: {json.dumps(load_summary)}
 Plan start date: {start_date.isoformat()}
 Duration: {duration_days} days
+
+Calendar Days to Schedule:
+{calendar_context}
 
 Generate the JSON {duration_days}-day schedule (day_offset 0 to {duration_days - 1}).
 """
 
     client = AIClient()
-    ai_output = await client.generate_json(system_prompt, user_prompt)
+    ai_output = await client.generate_json(system_prompt, user_prompt_text)
 
     workouts = []
     for item in ai_output.get("workouts", []):
         day_offset = item.get("day_offset", 0)
         workout_date = start_date + timedelta(days=day_offset)
-        duration_val = item.get("target_duration_min") or item.get("duration_min", 60)
+        duration_val = item.get("target_duration_min") or item.get("duration_min", 0)
         dist_val = item.get("target_distance_m") or item.get("distance_m")
         intensity_val = item.get("target_intensity") or item.get("intensity")
+        sport_val = item.get("sport_type") or (preferred_sports[0] if preferred_sports else "Run")
+        name_val = item.get("name", "Training Session")
+        meta_val = item.get("plan_metadata", {})
+
+        # Guardrail: Enforce designated rest days
+        day_name = workout_date.strftime("%A")
+        if day_name in rest_days:
+            sport_val = "Other"
+            name_val = "Rest & Recovery"
+            duration_val = 0
+            dist_val = None
+            intensity_val = 0
+            meta_val = {
+                "structure": {"rest": True},
+                "target_duration_min": 0,
+                "reasoning": f"Designated rest day ({day_name})",
+            }
+        elif preferred_sports and sport_val != "Other" and sport_val not in preferred_sports:
+            # Guardrail: Never allow sports not in athlete's preferred sports list
+            sport_val = preferred_sports[day_offset % len(preferred_sports)]
+            if "Ride" in name_val or "Bike" in name_val or "Cycling" in name_val:
+                name_val = f"{sport_val} Training"
+
         workouts.append({
             "day_offset": day_offset,
             "planned_date": workout_date.isoformat(),
-            "name": item.get("name", "Training Session"),
-            "sport_type": item.get("sport_type", "Ride"),
+            "name": name_val,
+            "sport_type": sport_val,
             "duration_min": duration_val,
             "distance_m": dist_val,
             "intensity": intensity_val,
-            "plan_metadata": item.get("plan_metadata", {}),
+            "plan_metadata": meta_val,
         })
 
     return {
@@ -107,7 +173,7 @@ Generate the JSON {duration_days}-day schedule (day_offset 0 to {duration_days -
         "start_date": start_date.isoformat(),
         "week_start_date": start_date.isoformat(),
         "duration_days": duration_days,
-        "reasoning": ai_output.get("reasoning", "Adaptive progression based on recent volume."),
+        "reasoning": ai_output.get("reasoning", "Adaptive progression based on recent volume and preferences."),
         "workouts": workouts,
     }
 
