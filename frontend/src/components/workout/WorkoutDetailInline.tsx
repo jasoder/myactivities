@@ -29,7 +29,7 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
 
   if (isLoading) {
     return (
-      <div className="p-4 bg-[#282a36] rounded-2xl border border-[#44475a] text-center text-xs text-[#6272a4] animate-pulse">
+      <div className="p-3 bg-[#1e1f29] rounded-md border border-[#44475a] text-center text-xs text-[#6272a4] animate-pulse">
         Loading workout details...
       </div>
     );
@@ -64,79 +64,80 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
   };
 
   return (
-    <div className="mt-3 p-4 bg-[#282a36] rounded-2xl border border-[#bd93f9]/30 text-left shadow-xl space-y-4">
+    <div className="mt-2 p-3 bg-[#1e1f29] rounded-md border border-[#44475a] text-left shadow-md space-y-3">
       {/* Header bar */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#44475a] text-[#8be9fd]">
+          <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#44475a]/70 text-[#8be9fd]">
             {activity.sport_type || "Workout"}
           </span>
-          <h4 className="text-sm font-semibold text-[#f8f8f2] mt-1">{activity.name || "Untitled"}</h4>
+          <h4 className="text-xs font-semibold text-[#f8f8f2] mt-1">{activity.name || "Untitled"}</h4>
           {activity.description && (
-            <p className="text-xs text-[#6272a4] mt-0.5">{activity.description}</p>
+            <p className="text-[11px] text-[#6272a4] mt-0.5">{activity.description}</p>
           )}
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a] transition-all"
+          className="p-1 rounded text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/60 transition-all"
+          aria-label="Collapse details"
         >
-          <ChevronUp className="w-4 h-4" />
+          <ChevronUp className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Quick Status Bar */}
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex items-center gap-1.5 pt-1">
         <button
           onClick={() => handleStatusToggle("completed")}
-          className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-all ${
             activity.status === "completed"
               ? "bg-[#50fa7b]/20 text-[#50fa7b] border border-[#50fa7b]/40"
-              : "bg-[#44475a]/40 text-[#6272a4] hover:text-[#f8f8f2]"
+              : "bg-[#282a36] text-[#6272a4] hover:text-[#f8f8f2] border border-[#44475a]/60"
           }`}
         >
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          Completed
+          <CheckCircle2 className="w-3 h-3" />
+          <span>Completed</span>
         </button>
         <button
           onClick={() => handleStatusToggle("planned")}
-          className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-all ${
             activity.status === "planned"
               ? "bg-[#8be9fd]/20 text-[#8be9fd] border border-[#8be9fd]/40"
-              : "bg-[#44475a]/40 text-[#6272a4] hover:text-[#f8f8f2]"
+              : "bg-[#282a36] text-[#6272a4] hover:text-[#f8f8f2] border border-[#44475a]/60"
           }`}
         >
-          <Circle className="w-3.5 h-3.5" />
-          Planned
+          <Circle className="w-3 h-3" />
+          <span>Planned</span>
         </button>
         <button
           onClick={() => handleStatusToggle("missed")}
-          className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-all ${
             activity.status === "missed"
               ? "bg-[#ff5555]/20 text-[#ff5555] border border-[#ff5555]/40"
-              : "bg-[#44475a]/40 text-[#6272a4] hover:text-[#f8f8f2]"
+              : "bg-[#282a36] text-[#6272a4] hover:text-[#f8f8f2] border border-[#44475a]/60"
           }`}
         >
-          <AlertCircle className="w-3.5 h-3.5" />
-          Missed
+          <AlertCircle className="w-3 h-3" />
+          <span>Missed</span>
         </button>
       </div>
 
       {/* Target/Completed Telemetry Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[#44475a]/40">
-        <div className="bg-[#44475a]/30 p-2 rounded-xl">
+        <div className="bg-[#282a36] p-2 rounded border border-[#44475a]/50">
           <div className="flex items-center gap-1 text-[10px] text-[#6272a4]">
             <Clock className="w-3 h-3 text-[#bd93f9]" /> Duration
           </div>
-          <p className="text-xs font-bold text-[#f8f8f2] mt-0.5">
+          <p className="text-xs font-mono font-semibold text-[#f8f8f2] mt-0.5">
             {metrics?.duration_min || activity.duration_min || 0} min
           </p>
         </div>
 
-        <div className="bg-[#44475a]/30 p-2 rounded-xl">
+        <div className="bg-[#282a36] p-2 rounded border border-[#44475a]/50">
           <div className="flex items-center gap-1 text-[10px] text-[#6272a4]">
             <Gauge className="w-3 h-3 text-[#50fa7b]" /> Distance
           </div>
-          <p className="text-xs font-bold text-[#f8f8f2] mt-0.5">
+          <p className="text-xs font-mono font-semibold text-[#f8f8f2] mt-0.5">
             {metrics?.distance_m
               ? `${(metrics.distance_m / 1000).toFixed(1)} km`
               : activity.distance_m
@@ -145,20 +146,20 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
           </p>
         </div>
 
-        <div className="bg-[#44475a]/30 p-2 rounded-xl">
+        <div className="bg-[#282a36] p-2 rounded border border-[#44475a]/50">
           <div className="flex items-center gap-1 text-[10px] text-[#6272a4]">
             <Heart className="w-3 h-3 text-[#ff79c6]" /> Heart Rate
           </div>
-          <p className="text-xs font-bold text-[#f8f8f2] mt-0.5">
+          <p className="text-xs font-mono font-semibold text-[#f8f8f2] mt-0.5">
             {metrics?.average_hr_bpm ? `${Math.round(metrics.average_hr_bpm)} bpm` : "—"}
           </p>
         </div>
 
-        <div className="bg-[#44475a]/30 p-2 rounded-xl">
+        <div className="bg-[#282a36] p-2 rounded border border-[#44475a]/50">
           <div className="flex items-center gap-1 text-[10px] text-[#6272a4]">
-            <Zap className="w-3 h-3 text-[#ffb86c]" /> Power / Intensity
+            <Zap className="w-3 h-3 text-[#ffb86c]" /> Power / Load
           </div>
-          <p className="text-xs font-bold text-[#f8f8f2] mt-0.5">
+          <p className="text-xs font-mono font-semibold text-[#f8f8f2] mt-0.5">
             {metrics?.average_power_w
               ? `${Math.round(metrics.average_power_w)} W`
               : activity.intensity
@@ -170,13 +171,13 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
 
       {/* Structured Interval Breakdown (if planned by AI or template) */}
       {structure && (
-        <div className="space-y-2 pt-2 border-t border-[#44475a]/40">
-          <h5 className="text-[11px] font-semibold uppercase tracking-wider text-[#bd93f9]">
+        <div className="space-y-1.5 pt-2 border-t border-[#44475a]/40">
+          <h5 className="text-[10px] font-mono uppercase tracking-wider text-[#bd93f9]">
             Structured Workout Steps
           </h5>
-          <div className="space-y-1.5 text-xs">
+          <div className="space-y-1 text-xs">
             {structure.warmup && (
-              <div className="p-2 rounded-xl bg-[#44475a]/20 border border-[#44475a]/40 flex justify-between">
+              <div className="p-1.5 rounded bg-[#282a36] border border-[#44475a]/40 flex justify-between">
                 <span className="text-[#6272a4]">Warmup</span>
                 <span className="text-[#f8f8f2]">
                   {structure.warmup.duration_min}m ({structure.warmup.description})
@@ -186,7 +187,7 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
             {structure.main_set?.map((step: any, idx: number) => (
               <div
                 key={idx}
-                className="p-2 rounded-xl bg-[#bd93f9]/10 border border-[#bd93f9]/20 flex justify-between"
+                className="p-1.5 rounded bg-[#bd93f9]/10 border border-[#bd93f9]/20 flex justify-between"
               >
                 <span className="text-[#bd93f9] font-medium">
                   Set {idx + 1}: {step.intervals}x {step.duration_min}m
@@ -195,7 +196,7 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
               </div>
             ))}
             {structure.cooldown && (
-              <div className="p-2 rounded-xl bg-[#44475a]/20 border border-[#44475a]/40 flex justify-between">
+              <div className="p-1.5 rounded bg-[#282a36] border border-[#44475a]/40 flex justify-between">
                 <span className="text-[#6272a4]">Cooldown</span>
                 <span className="text-[#f8f8f2]">
                   {structure.cooldown.duration_min}m ({structure.cooldown.description})
@@ -208,8 +209,8 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
 
       {/* AI Coach Reasoning */}
       {reasoning && (
-        <div className="p-2.5 rounded-xl bg-[#bd93f9]/10 border border-[#bd93f9]/30 text-xs text-[#bd93f9] flex items-start gap-2">
-          <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+        <div className="p-2 rounded bg-[#bd93f9]/10 border border-[#bd93f9]/30 text-xs text-[#bd93f9] flex items-start gap-2">
+          <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
             <span className="font-semibold text-[#f8f8f2]">Coach notes:</span> {reasoning}
           </p>
@@ -225,11 +226,11 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
               required
               value={newDate}
               onChange={(e) => setNewDate(e.target.value)}
-              className="px-2 py-1 text-xs rounded-lg bg-[#44475a] text-[#f8f8f2] border border-[#6272a4] focus:outline-none"
+              className="px-2 py-1 text-xs rounded bg-[#282a36] text-[#f8f8f2] border border-[#6272a4] focus:outline-none"
             />
             <button
               type="submit"
-              className="px-2.5 py-1 text-xs font-semibold bg-[#bd93f9] text-[#282a36] rounded-lg"
+              className="px-2 py-1 text-xs font-semibold bg-[#bd93f9] text-[#282a36] rounded"
             >
               Move
             </button>

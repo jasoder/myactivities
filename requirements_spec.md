@@ -2,11 +2,12 @@
 
 ## Architecture and Platforms
 
-- **Unified codebase** using React Native and React Native Web *(planned Phase 2)*
-- Single responsive layout targeting mobile and web browsers with identical UI *(future)*
-- Asynchronous FastAPI backend
-- PostgreSQL database
-- Dockerized environment for consistent development/local runs
+- **Modern Single-Page Application (SPA)** using React 19, TypeScript, Vite, and Tailwind CSS (located in `frontend/`)
+- Responsive dark-theme calendar dashboard with Dracula palette, swipe gestures, and conversational AI assistant
+- Asynchronous FastAPI backend mounted at `/api/v1`
+- PostgreSQL 14 database with composite indexes for calendar queries
+- Dockerized container environment with `docker-compose.yml`
+
 
 ## Authentication and Onboarding
 
@@ -155,23 +156,24 @@ pytest
 ## Project Structure
 
 ```
-src/
-├── app/
-│   ├── main.py              # FastAPI app entry point
-│   ├── core/                # Core configuration & security (JWT, argon2)
-│   ├── api/
-│   │   ├── api_router.py    # Main router
-│   │   └── routers/         # API endpoints (auth, user, activities, strava, ai)
-│   ├── db/
-│   │   ├── base.py          # SQLAlchemy base
-│   │   ├── session.py       # DB session manager
-│   │   └── manage.py        # Database initialization
-│   ├── models/              # SQLAlchemy models (Activity, ActivityMetric, WeekPlan, TrainingPreference, Athlete)
-│   ├── schemas/             # Pydantic schemas (activities, athlete, auth, errors)
-│   ├── services/            # Business logic (activities_service, athlete_service, auth_service, strava_sync_service)
-│   ├── integrations/        # External integrations (Strava client)
-│   └── ai/                  # AI assistant services (planner_service, load_analysis_service, client)
-├── tests/                   # Pytest test suite
+├── frontend/                # React 19 + TypeScript + Vite app
+│   ├── src/
+│   │   ├── api/             # Typed openapi-fetch client and dynamic schemas
+│   │   ├── components/      # CalendarStrip, AIChatDrawer, TrainingLoadDrawer, WorkoutModal
+│   │   ├── context/         # AuthContext & token management
+│   │   └── hooks/           # TanStack React Query hooks
+│   └── package.json
+├── src/
+│   └── app/
+│       ├── main.py          # FastAPI app entry point
+│       ├── core/            # Core configuration & security (JWT, Argon2id)
+│       ├── api/             # Routers (auth, user, activities, strava, ai)
+│       ├── db/              # SQLAlchemy session & DB management
+│       ├── models/          # Models (Activity, ActivityMetric, WeekPlan, Athlete)
+│       ├── schemas/         # Pydantic validation schemas
+│       ├── services/        # Business logic & Strava sync service
+│       └── ai/              # Multi-provider LLM client, planner, & load analysis
+├── tests/                   # Pytest test suite (39 unit tests)
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml

@@ -95,13 +95,29 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <span className="text-[10px] text-[#50fa7b] font-medium flex items-center gap-0.5"><CheckCircle2 className="w-2.5 h-2.5" /> Done</span>;
+        return (
+          <span className="text-[10px] text-[#50fa7b] bg-[#50fa7b]/10 border border-[#50fa7b]/30 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
+            <CheckCircle2 className="w-2.5 h-2.5" /> Done
+          </span>
+        );
       case "missed":
-        return <span className="text-[10px] text-[#ff5555] font-medium flex items-center gap-0.5"><AlertCircle className="w-2.5 h-2.5" /> Missed</span>;
+        return (
+          <span className="text-[10px] text-[#ff5555] bg-[#ff5555]/10 border border-[#ff5555]/30 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
+            <AlertCircle className="w-2.5 h-2.5" /> Missed
+          </span>
+        );
       case "modified":
-        return <span className="text-[10px] text-[#ffb86c] font-medium">Modified</span>;
+        return (
+          <span className="text-[10px] text-[#ffb86c] bg-[#ffb86c]/10 border border-[#ffb86c]/30 px-1.5 py-0.5 rounded font-mono">
+            Modified
+          </span>
+        );
       default:
-        return <span className="text-[10px] text-[#8be9fd] font-medium">Planned</span>;
+        return (
+          <span className="text-[10px] text-[#8be9fd] bg-[#8be9fd]/10 border border-[#8be9fd]/30 px-1.5 py-0.5 rounded font-mono">
+            Planned
+          </span>
+        );
     }
   };
 
@@ -115,14 +131,14 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
       {/* Calendar Header Navigation */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <CalendarDays className="w-5 h-5 text-[#bd93f9]" />
-          <h2 className="text-base sm:text-lg font-bold text-[#f8f8f2]">
+          <CalendarDays className="w-4 h-4 text-[#bd93f9]" />
+          <h2 className="text-sm sm:text-base font-semibold text-[#f8f8f2]">
             {formatDateLabel(currentMonday)} – {formatDateLabel(sunday)}
           </h2>
           {!isCurrentWeek && (
             <button
               onClick={handleResetToday}
-              className="ml-2 px-2.5 py-1 rounded-lg bg-[#44475a]/60 hover:bg-[#44475a] text-[11px] font-medium text-[#8be9fd] flex items-center gap-1 transition-all"
+              className="ml-2 px-2 py-0.5 rounded-md bg-[#44475a]/60 hover:bg-[#44475a] text-[11px] font-mono text-[#8be9fd] flex items-center gap-1 transition-all border border-[#44475a]"
             >
               <RotateCcw className="w-3 h-3" />
               Today
@@ -134,14 +150,14 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
           <button
             onClick={handlePrevWeek}
             aria-label="Previous week"
-            className="p-2 rounded-xl bg-[#44475a]/40 hover:bg-[#44475a] text-[#f8f8f2] transition-all"
+            className="p-1.5 rounded-md bg-[#44475a]/40 hover:bg-[#44475a] text-[#f8f8f2] transition-all border border-[#44475a]/60"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={handleNextWeek}
             aria-label="Next week"
-            className="p-2 rounded-xl bg-[#44475a]/40 hover:bg-[#44475a] text-[#f8f8f2] transition-all"
+            className="p-1.5 rounded-md bg-[#44475a]/40 hover:bg-[#44475a] text-[#f8f8f2] transition-all border border-[#44475a]/60"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -163,29 +179,29 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
           return (
             <div
               key={dateISO}
-              className={`rounded-2xl border transition-all ${
+              className={`rounded-lg border transition-all ${
                 isToday
-                  ? "bg-[#44475a]/40 border-[#bd93f9]/60 shadow-lg shadow-[#bd93f9]/5"
-                  : "bg-[#44475a]/20 border-[#44475a]/40 hover:border-[#6272a4]/60"
-              } p-3.5`}
+                  ? "bg-[#44475a]/30 border-[#bd93f9]/50 shadow-sm"
+                  : "bg-[#44475a]/15 border-[#44475a]/50 hover:border-[#6272a4]/50"
+              } p-3`}
             >
               <div className="flex items-center justify-between">
                 {/* Day Header Info */}
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <div
-                    className={`w-9 h-9 rounded-xl flex flex-col items-center justify-center font-bold transition-all ${
+                    className={`w-8 h-8 rounded-md flex flex-col items-center justify-center font-mono font-bold transition-all ${
                       isToday
                         ? "bg-[#bd93f9] text-[#282a36]"
-                        : "bg-[#282a36] text-[#6272a4]"
+                        : "bg-[#1e1f29] text-[#6272a4] border border-[#44475a]/60"
                     }`}
                   >
-                    <span className="text-[10px] uppercase leading-none font-semibold">
+                    <span className="text-[9px] uppercase leading-none font-semibold">
                       {DAY_NAMES[dayIdx]}
                     </span>
                     <span className="text-xs leading-none mt-0.5">{dayDate.getDate()}</span>
                   </div>
 
-                  <span className="text-xs font-medium text-[#6272a4]">
+                  <span className="text-xs font-mono text-[#6272a4]">
                     {dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                 </div>
@@ -193,7 +209,7 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
                 {/* Day Add Workout Trigger */}
                 <button
                   onClick={() => onOpenAddWorkout(dayDate)}
-                  className="p-1 rounded-lg text-[#6272a4] hover:text-[#bd93f9] hover:bg-[#44475a]/60 transition-all text-xs flex items-center gap-1"
+                  className="px-1.5 py-1 rounded text-[#6272a4] hover:text-[#bd93f9] hover:bg-[#44475a]/50 transition-all text-xs flex items-center gap-1 border border-transparent hover:border-[#44475a]"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline text-[11px]">Add</span>
@@ -201,7 +217,7 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
               </div>
 
               {/* Day Workouts Cards */}
-              <div className="mt-2.5 space-y-2">
+              <div className="mt-2 space-y-1.5">
                 {dayEvents.length > 0 ? (
                   dayEvents.map((event) => {
                     const isExpanded = expandedActivityId === event.id;
@@ -217,21 +233,21 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
                         <button
                           type="button"
                           onClick={() => setExpandedActivityId(isExpanded ? null : event.id)}
-                          className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                          className={`w-full text-left p-2.5 rounded-md border transition-all flex items-center justify-between gap-3 ${
                             isExpanded
-                              ? "bg-[#282a36] border-[#bd93f9] shadow-md"
-                              : "bg-[#282a36]/60 border-[#44475a]/60 hover:bg-[#282a36] hover:border-[#6272a4]"
+                              ? "bg-[#1e1f29] border-[#bd93f9]/70 shadow-sm"
+                              : "bg-[#1e1f29]/70 border-[#44475a]/60 hover:bg-[#1e1f29] hover:border-[#6272a4]/70"
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="p-1.5 rounded-lg bg-[#44475a]/50 shrink-0">
+                            <div className="p-1 rounded bg-[#44475a]/40 shrink-0">
                               {getSportIcon(event.type)}
                             </div>
                             <div className="truncate">
-                              <p className="text-xs font-semibold text-[#f8f8f2] truncate">
+                              <p className="text-xs font-medium text-[#f8f8f2] truncate">
                                 {event.title || "Untitled Activity"}
                               </p>
-                              <div className="flex items-center gap-2 text-[11px] text-[#6272a4] mt-0.5">
+                              <div className="flex items-center gap-2 text-[10px] font-mono text-[#6272a4] mt-0.5">
                                 {durationMin && <span>{durationMin} min</span>}
                                 {distanceKm && <span>{distanceKm} km</span>}
                               </div>
@@ -252,7 +268,7 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
                     );
                   })
                 ) : (
-                  <div className="py-2 text-center text-xs text-[#6272a4]/70 italic">
+                  <div className="py-1.5 text-center text-[11px] text-[#6272a4]/70 italic">
                     Rest or unstructured day
                   </div>
                 )}
@@ -264,19 +280,19 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
 
       {/* Empty State Banner (if entire week has 0 events) */}
       {!isLoading && events.length === 0 && (
-        <div className="mt-6 p-6 rounded-3xl bg-[#44475a]/20 border border-[#bd93f9]/20 text-center space-y-3">
-          <div className="w-10 h-10 mx-auto rounded-2xl bg-[#bd93f9]/20 flex items-center justify-center text-[#bd93f9]">
-            <Sparkles className="w-5 h-5" />
+        <div className="mt-6 p-5 rounded-lg bg-[#44475a]/15 border border-[#bd93f9]/20 text-center space-y-3">
+          <div className="w-9 h-9 mx-auto rounded-md bg-[#bd93f9]/15 flex items-center justify-center text-[#bd93f9] border border-[#bd93f9]/30">
+            <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[#f8f8f2]">No workouts scheduled this week</h3>
-            <p className="text-xs text-[#6272a4] mt-1 max-w-sm mx-auto">
-              Tap "Ask AI" in the bottom dock to generate a periodized training block, or log an activity manually.
+            <h3 className="text-xs font-semibold text-[#f8f8f2]">No workouts scheduled this week</h3>
+            <p className="text-[11px] text-[#6272a4] mt-1 max-w-sm mx-auto">
+              Tap "AI Coach" in the bottom dock to generate a periodized training block, or log an activity manually.
             </p>
           </div>
           <button
             onClick={onOpenAI}
-            className="px-4 py-2 rounded-xl bg-[#bd93f9] text-[#282a36] font-semibold text-xs transition-all shadow-lg shadow-[#bd93f9]/20 hover:bg-[#caa5fb]"
+            className="px-3.5 py-1.5 rounded-md bg-[#bd93f9] text-[#282a36] font-medium text-xs transition-all hover:bg-[#caa5fb]"
           >
             Plan with AI Coach
           </button>

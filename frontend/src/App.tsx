@@ -47,32 +47,26 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#282a36] text-[#f8f8f2] flex flex-col pb-24">
       {/* Top Bar */}
-      <header className="w-full border-b border-[#44475a]/40 bg-[#282a36]/80 backdrop-blur-md sticky top-0 z-30 px-4 py-3">
+      <header className="w-full border-b border-[#44475a]/60 bg-[#282a36]/90 backdrop-blur-md sticky top-0 z-30 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-xl bg-[#bd93f9]/20 text-[#bd93f9]">
-              <Activity className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-[#bd93f9]/15 text-[#bd93f9] border border-[#bd93f9]/30">
+              <Activity className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-[#f8f8f2] leading-none">MyActivities</h1>
-              <p className="text-[10px] text-[#6272a4] mt-0.5">{athlete.name || athlete.email}</p>
+              <h1 className="text-sm font-semibold tracking-tight text-[#f8f8f2] leading-none">
+                MyActivities
+              </h1>
+              <p className="text-[11px] text-[#6272a4] mt-0.5">{athlete.name || athlete.email}</p>
             </div>
           </div>
 
-          {/* Strava status indicator */}
-          <div className="flex items-center gap-2">
-            {athlete.strava_connected ? (
-              <span className="px-2.5 py-1 rounded-full bg-[#50fa7b]/15 text-[#50fa7b] text-[10px] font-semibold flex items-center gap-1 border border-[#50fa7b]/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#50fa7b]" /> Strava Synced
-              </span>
-            ) : (
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="px-2.5 py-1 rounded-full bg-[#44475a]/50 hover:bg-[#44475a] text-[#6272a4] hover:text-[#f8f8f2] text-[10px] font-medium transition-all"
-              >
-                + Connect Strava
-              </button>
-            )}
+          <div className="text-xs font-mono text-[#6272a4]">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })}
           </div>
         </div>
       </header>

@@ -24,24 +24,25 @@ export const TrainingLoadDrawer: React.FC<TrainingLoadDrawerProps> = ({ isOpen, 
   const formStatus = loadData?.form_status || (tsb > 5 ? "Fresh" : tsb < -10 ? "Fatigued" : "Optimal");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-[#282a36] border border-[#44475a] rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
+      <div className="w-full max-w-lg bg-[#282a36] border border-[#44475a] rounded-t-lg sm:rounded-lg p-5 shadow-2xl space-y-5 max-h-[85vh] overflow-y-auto animate-in fade-in duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#44475a]/50 pb-4">
+        <div className="flex items-center justify-between border-b border-[#44475a]/60 pb-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#8be9fd]/20 text-[#8be9fd]">
-              <TrendingUp className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-[#8be9fd]/15 text-[#8be9fd] border border-[#8be9fd]/30">
+              <TrendingUp className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#f8f8f2]">Training Load & Physiology</h3>
-              <p className="text-xs text-[#6272a4]">Chronic & Acute Workload Analytics</p>
+              <h3 className="text-sm font-semibold text-[#f8f8f2]">Training Load & Physiology</h3>
+              <p className="text-[11px] text-[#6272a4]">Chronic & Acute Workload Analytics</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a] transition-all"
+            className="p-1 rounded-md text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/50 transition-all"
+            aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -51,44 +52,44 @@ export const TrainingLoadDrawer: React.FC<TrainingLoadDrawerProps> = ({ isOpen, 
             Calculating physiological load...
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-[#44475a]/30 border border-[#44475a]/50 p-3.5 rounded-2xl text-center">
-              <div className="flex items-center justify-center gap-1 text-[11px] text-[#6272a4]">
-                <HeartPulse className="w-3.5 h-3.5 text-[#50fa7b]" /> Fitness (CTL)
+          <div className="grid grid-cols-3 gap-2.5">
+            <div className="bg-[#1e1f29] border border-[#44475a] p-3 rounded-md text-center">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-mono text-[#6272a4]">
+                <HeartPulse className="w-3 h-3 text-[#50fa7b]" /> CTL
               </div>
-              <p className="text-2xl font-black text-[#50fa7b] mt-1">{ctl}</p>
-              <span className="text-[10px] text-[#6272a4]">42-day rolling</span>
+              <p className="text-xl font-mono font-bold text-[#50fa7b] mt-1">{ctl}</p>
+              <span className="text-[10px] text-[#6272a4]">Fitness (42d)</span>
             </div>
 
-            <div className="bg-[#44475a]/30 border border-[#44475a]/50 p-3.5 rounded-2xl text-center">
-              <div className="flex items-center justify-center gap-1 text-[11px] text-[#6272a4]">
-                <BatteryCharging className="w-3.5 h-3.5 text-[#ff5555]" /> Fatigue (ATL)
+            <div className="bg-[#1e1f29] border border-[#44475a] p-3 rounded-md text-center">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-mono text-[#6272a4]">
+                <BatteryCharging className="w-3 h-3 text-[#ff5555]" /> ATL
               </div>
-              <p className="text-2xl font-black text-[#ff5555] mt-1">{atl}</p>
-              <span className="text-[10px] text-[#6272a4]">7-day acute</span>
+              <p className="text-xl font-mono font-bold text-[#ff5555] mt-1">{atl}</p>
+              <span className="text-[10px] text-[#6272a4]">Fatigue (7d)</span>
             </div>
 
-            <div className="bg-[#44475a]/30 border border-[#44475a]/50 p-3.5 rounded-2xl text-center">
-              <div className="flex items-center justify-center gap-1 text-[11px] text-[#6272a4]">
-                <Zap className="w-3.5 h-3.5 text-[#bd93f9]" /> Form (TSB)
+            <div className="bg-[#1e1f29] border border-[#44475a] p-3 rounded-md text-center">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-mono text-[#6272a4]">
+                <Zap className="w-3 h-3 text-[#bd93f9]" /> TSB
               </div>
               <p
-                className={`text-2xl font-black mt-1 ${
+                className={`text-xl font-mono font-bold mt-1 ${
                   tsb >= 0 ? "text-[#8be9fd]" : "text-[#ffb86c]"
                 }`}
               >
                 {tsb > 0 ? `+${tsb}` : tsb}
               </p>
-              <span className="text-[10px] font-semibold text-[#f8f8f2]">{formStatus}</span>
+              <span className="text-[10px] font-medium text-[#f8f8f2]">{formStatus}</span>
             </div>
           </div>
         )}
 
         {/* Weekly Recap / Morning Report */}
-        <div className="space-y-3 pt-2 border-t border-[#44475a]/50">
+        <div className="space-y-2.5 pt-2 border-t border-[#44475a]/60">
           <div className="flex items-center gap-2">
             <Award className="w-4 h-4 text-[#bd93f9]" />
-            <h4 className="text-sm font-bold text-[#f8f8f2]">Current Week Recap</h4>
+            <h4 className="text-xs font-semibold text-[#f8f8f2]">Current Week Recap</h4>
           </div>
 
           {isRecapLoading ? (
@@ -96,16 +97,16 @@ export const TrainingLoadDrawer: React.FC<TrainingLoadDrawerProps> = ({ isOpen, 
               Compiling weekly performance summary...
             </div>
           ) : recapData ? (
-            <div className="bg-[#44475a]/20 border border-[#bd93f9]/30 p-4 rounded-2xl space-y-3">
+            <div className="bg-[#1e1f29] border border-[#bd93f9]/30 p-3.5 rounded-md space-y-2.5">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-[#6272a4]">Compliance Rate:</span>
-                <span className="font-bold text-[#50fa7b]">
+                <span className="font-mono font-semibold text-[#50fa7b]">
                   {recapData.compliance_rate ? `${Math.round(recapData.compliance_rate)}%` : "N/A"}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-[#6272a4]">Sessions Completed / Planned:</span>
-                <span className="font-bold text-[#f8f8f2]">
+                <span className="font-mono font-semibold text-[#f8f8f2]">
                   {recapData.completed_sessions ?? 0} / {recapData.planned_sessions ?? 0}
                 </span>
               </div>
