@@ -1,122 +1,117 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import React, { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthScreen } from "./components/auth/AuthScreen";
+import { CalendarStrip } from "./components/calendar/CalendarStrip";
+import { BottomToolbar } from "./components/layout/BottomToolbar";
+import { AIChatDrawer } from "./components/chat/AIChatDrawer";
+import { TrainingLoadDrawer } from "./components/analytics/TrainingLoadDrawer";
+import { SettingsDrawer } from "./components/settings/SettingsDrawer";
+import { WorkoutModal } from "./components/workout/WorkoutModal";
+import { Activity, Loader2 } from "lucide-react";
 
-function App() {
-  const [count, setCount] = useState(0)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2, // 2 minutes
+      retry: 1,
+    },
+  },
+});
+
+const Dashboard: React.FC = () => {
+  const { athlete, isLoading } = useAuth();
+  const [isAIOpen, setIsAIOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAddWorkoutOpen, setIsAddWorkoutOpen] = useState(false);
+  const [selectedAddDate, setSelectedAddDate] = useState<Date | undefined>(undefined);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#282a36] flex items-center justify-center text-[#bd93f9]">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!athlete) {
+    return <AuthScreen />;
+  }
+
+  const handleOpenAddWorkout = (date?: Date) => {
+    setSelectedAddDate(date);
+    setIsAddWorkoutOpen(true);
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="min-h-screen bg-[#282a36] text-[#f8f8f2] flex flex-col pb-24">
+      {/* Top Bar */}
+      <header className="w-full border-b border-[#44475a]/40 bg-[#282a36]/80 backdrop-blur-md sticky top-0 z-30 px-4 py-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xl bg-[#bd93f9]/20 text-[#bd93f9]">
+              <Activity className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-[#f8f8f2] leading-none">MyActivities</h1>
+              <p className="text-[10px] text-[#6272a4] mt-0.5">{athlete.name || athlete.email}</p>
+            </div>
+          </div>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          {/* Strava status indicator */}
+          <div className="flex items-center gap-2">
+            {athlete.strava_connected ? (
+              <span className="px-2.5 py-1 rounded-full bg-[#50fa7b]/15 text-[#50fa7b] text-[10px] font-semibold flex items-center gap-1 border border-[#50fa7b]/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#50fa7b]" /> Strava Synced
+              </span>
+            ) : (
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="px-2.5 py-1 rounded-full bg-[#44475a]/50 hover:bg-[#44475a] text-[#6272a4] hover:text-[#f8f8f2] text-[10px] font-medium transition-all"
+              >
+                + Connect Strava
+              </button>
+            )}
+          </div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* Main Calendar View */}
+      <main className="flex-1">
+        <CalendarStrip
+          onOpenAI={() => setIsAIOpen(true)}
+          onOpenAddWorkout={handleOpenAddWorkout}
+        />
+      </main>
+
+      {/* Fixed Bottom Toolbar */}
+      <BottomToolbar
+        onOpenAI={() => setIsAIOpen(true)}
+        onOpenAnalytics={() => setIsAnalyticsOpen(true)}
+        onOpenAddWorkout={() => handleOpenAddWorkout()}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+
+      {/* Modals & Drawers */}
+      <AIChatDrawer isOpen={isAIOpen} onClose={() => setIsAIOpen(false)} />
+      <TrainingLoadDrawer isOpen={isAnalyticsOpen} onClose={() => setIsAnalyticsOpen(false)} />
+      <SettingsDrawer isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <WorkoutModal
+        isOpen={isAddWorkoutOpen}
+        onClose={() => setIsAddWorkoutOpen(false)}
+        defaultDate={selectedAddDate}
+      />
+    </div>
+  );
+};
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Dashboard />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
 }
-
-export default App
