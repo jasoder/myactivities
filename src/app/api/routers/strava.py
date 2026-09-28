@@ -24,24 +24,27 @@ async def get_strava_auth_url(
     return {"auth_url": StravaClient.get_authorization_url(client_id, redirect_uri)}
 
 
+from typing import Optional
+from app.services.auth_service import get_optional_current_athlete
+
+
 @router.post("/oauth/callback")
 async def strava_oauth_callback(
     code: str = Query(..., description="Authorization code from Strava"),
-    athlete_id: uuid.UUID | None = Query(None, description="Athlete ID (optional)"),
+    athlete_id: Optional[uuid.UUID] = Query(None, description="Athlete ID (optional if authenticated)"),
+    current_athlete: Optional[Athlete] = Depends(get_optional_current_athlete),
     db: AsyncSession = Depends(get_db),
 ):
     """Handle Strava OAuth callback and store tokens."""
+    target_athlete_id = athlete_id or (current_athlete.id if current_athlete else None)
     try:
         from app.services import athlete_service
-        return await athlete_service.handle_strava_oauth_callback(db, athlete_id, code)
+        return await athlete_service.handle_strava_oauth_callback(db, target_athlete_id, code)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
 
-
-from typing import Optional
-from app.services.auth_service import get_optional_current_athlete
 
 
 @router.post("/sync")

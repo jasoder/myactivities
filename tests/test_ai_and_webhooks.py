@@ -96,6 +96,28 @@ async def test_strava_sync_authenticated():
             mock_sync.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_strava_oauth_callback_authenticated():
+    """Test Strava OAuth callback inferring athlete_id from Bearer token."""
+    from app.services.auth_service import get_optional_current_athlete
+    from app.models.athlete import Athlete
+
+    mock_athlete = mock_obj(id=athlete_id, spec=Athlete)
+
+    async with mock_app() as client:
+        app.dependency_overrides[get_optional_current_athlete] = lambda: mock_athlete
+        with patch("app.services.athlete_service.handle_strava_oauth_callback", new_callable=AsyncMock) as mock_oauth:
+            mock_oauth.return_value = {
+                "access_token": "jwt_token_123",
+                "athlete_id": str(athlete_id),
+                "connected": True,
+            }
+            res = await client.post("/myactivities/strava/oauth/callback?code=mock_strava_code")
+            assert res.status_code == 200
+            data = res.json()
+            assert data["connected"] is True
+            mock_oauth.assert_called_once_with(mock_oauth.call_args[0][0], athlete_id, "mock_strava_code")
+
 
 @pytest.mark.asyncio
 async def test_ai_weekly_recap():
