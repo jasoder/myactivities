@@ -3,12 +3,10 @@ import type { paths, components } from "./schema";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
-// Create typed OpenAPI client
 export const api = createClient<paths>({
   baseUrl: API_BASE_URL,
 });
 
-// Helper for managing auth tokens in headers
 let authToken: string | null = localStorage.getItem("auth_token");
 
 export const setAuthToken = (token: string | null) => {
@@ -22,7 +20,6 @@ export const setAuthToken = (token: string | null) => {
 
 export const getAuthToken = () => authToken;
 
-// Intercept requests to attach Bearer token automatically
 api.use({
   async onRequest({ request }) {
     if (authToken) {
@@ -32,23 +29,35 @@ api.use({
   },
   async onResponse({ response }) {
     if (response.status === 401) {
-      // Clear token on 401 unauthorized
       setAuthToken(null);
     }
     return response;
   },
 });
 
-// Convenient shortcut types
-export type Schema<T extends keyof components["schemas"]> = components["schemas"][T];
+export function throwIfError(error: unknown, fallbackMessage: string): void {
+  if (!error) return;
+  const detail = (error as { detail?: string | Array<{ msg?: string }> })?.detail;
+  const message = Array.isArray(detail) ? detail[0]?.msg : detail;
+  throw new Error(message || fallbackMessage);
+}
+
+export function unwrap<T>(
+  result: { data?: T; error?: unknown },
+  fallbackMessage: string
+): T {
+  throwIfError(result.error, fallbackMessage);
+  if (result.data === undefined) {
+    throw new Error(fallbackMessage);
+  }
+  return result.data;
+}
+
+type Schema<T extends keyof components["schemas"]> = components["schemas"][T];
 
 export type Athlete = Schema<"AthleteRead">;
 export type AthleteUpdate = Schema<"AthleteUpdate">;
-export type Activity = Schema<"ActivityRead">;
-export type ActivitiesResponse = Schema<"ActivitiesResponse">;
-export type ActivitiesEntry = Schema<"ActivitiesEntry">;
 export type ActivityCreate = Schema<"ActivityCreate">;
 export type ActivityUpdate = Schema<"ActivityUpdate">;
-export type TrainingPreference = Schema<"TrainingPreferenceRead">;
 export type TrainingPreferenceUpdate = Schema<"TrainingPreferenceUpdate">;
 export type ConfirmPlanRequest = Schema<"ConfirmPlanRequest">;

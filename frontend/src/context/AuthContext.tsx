@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { api, setAuthToken, getAuthToken, type Athlete } from "../api/client";
+import React, { createContext, useContext, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, unwrap, setAuthToken, getAuthToken, type Athlete } from "../api/client";
 
 interface AuthContextType {
   token: string | null;
@@ -14,82 +15,55 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [token, setTokenState] = useState<string | null>(getAuthToken());
-  const [athlete, setAthlete] = useState<Athlete | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const fetchProfile = async () => {
-    try {
+  const { data: athlete = null, isLoading, refetch } = useQuery<Athlete | null>({
+    queryKey: ["user-profile"],
+    queryFn: async () => {
       const { data, error } = await api.GET("/myactivities/user");
-      if (data) {
-        setAthlete(data);
-      } else if (error) {
+      if (error || !data) {
         setAuthToken(null);
         setTokenState(null);
-        setAthlete(null);
+        return null;
       }
-    } catch {
-      setAuthToken(null);
-      setTokenState(null);
-      setAthlete(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return data;
+    },
+    enabled: Boolean(token),
+    retry: false,
+  });
 
-  useEffect(() => {
-    if (token) {
-      fetchProfile();
-    } else {
-      setIsLoading(false);
-    }
-  }, [token]);
-
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    const { data, error } = await api.POST("/myactivities/auth/login", {
-      body: { email, password },
-    });
-
-    if (error || !data) {
-      setIsLoading(false);
-      const detail = (error as any)?.detail || "Invalid email or password";
-      throw new Error(detail);
-    }
-
+  const authenticate = async (
+    request: () => Promise<{ data?: { access_token: string; athlete: Athlete }; error?: unknown }>,
+    fallbackError: string
+  ) => {
+    const data = unwrap(await request(), fallbackError);
     setAuthToken(data.access_token);
     setTokenState(data.access_token);
-    setAthlete(data.athlete);
-    setIsLoading(false);
+    queryClient.setQueryData(["user-profile"], data.athlete);
   };
 
-  const register = async (email: string, password: string, name?: string) => {
-    setIsLoading(true);
-    const { data, error } = await api.POST("/myactivities/auth/register", {
-      body: { email, password, name },
-    });
+  const login = (email: string, password: string) =>
+    authenticate(
+      () => api.POST("/myactivities/auth/login", { body: { email, password } }),
+      "Invalid email or password"
+    );
 
-    if (error || !data) {
-      setIsLoading(false);
-      const detail = (error as any)?.detail || "Registration failed";
-      throw new Error(detail);
-    }
-
-    setAuthToken(data.access_token);
-    setTokenState(data.access_token);
-    setAthlete(data.athlete);
-    setIsLoading(false);
-  };
+  const register = (email: string, password: string, name?: string) =>
+    authenticate(
+      () => api.POST("/myactivities/auth/register", { body: { email, password, name } }),
+      "Registration failed"
+    );
 
   const logout = () => {
     setAuthToken(null);
     setTokenState(null);
-    setAthlete(null);
+    queryClient.clear();
   };
 
   const refreshProfile = async () => {
     if (token) {
-      await fetchProfile();
+      await refetch();
     }
   };
 
@@ -98,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         token,
         athlete,
-        isLoading,
+        isLoading: Boolean(token) && isLoading,
         login,
         register,
         logout,

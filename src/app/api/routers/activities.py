@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from app.db.session import get_db
 from app.models.athlete import Athlete
-from app.services.auth_service import get_optional_current_athlete
+from app.services.auth_service import get_optional_current_athlete, resolve_target_athlete_id
 from app.schemas.activities import (
     ActivityCreate,
     ActivityUpdate,
@@ -22,12 +22,9 @@ async def create_activity_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new planned or completed activity."""
-    target_athlete_id = activity_in.athlete_id or (current_athlete.id if current_athlete else None)
-    if not target_athlete_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="athlete_id or Bearer authentication is required.",
-        )
+    target_athlete_id = resolve_target_athlete_id(
+        activity_in.athlete_id, current_athlete, "athlete_id or Bearer authentication is required."
+    )
     if activity_in.athlete_id != target_athlete_id:
         activity_in.athlete_id = target_athlete_id
     return await activities_service.create_activity(db, activity_in)

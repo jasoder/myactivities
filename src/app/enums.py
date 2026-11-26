@@ -1,11 +1,6 @@
-from enum import StrEnum, Enum
+from enum import StrEnum
 
-class ActivityType(StrEnum):
-    ride = "Ride"
-    run = "Run"
-    swim = "Swim"
-    other = "Other"
-    
+
 class ActivityStatus(StrEnum):
     planned = "planned"
     completed = "completed"
@@ -13,20 +8,10 @@ class ActivityStatus(StrEnum):
     modified = "modified"
 
 
-class ActivityGoal(StrEnum):
-    recovery = "Recovery"
-    endurance = "Endurance"
-    tempo = "Tempo"
-    threshold = "Threshold"
-    vo2max = "VO2 Max"
-    long = "Long"
-
 class ActivitySource(StrEnum):
     strava = "strava"
     manual = "manual"
     ai_generated = "ai_generated"
 
-    # Uppercase aliases for compatibility
+    # Alias used in seed scripts
     STRAVA = "strava"
-    MANUAL = "manual"
-    AI_GENERATED = "ai_generated"

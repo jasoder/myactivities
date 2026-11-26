@@ -1,51 +1,18 @@
 import pytest
-import sys
-from pathlib import Path
 import uuid
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
-from httpx import AsyncClient, ASGITransport
-from contextlib import asynccontextmanager
 from urllib.parse import quote
 
-# Ensure src is on path
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-sys.path.insert(0, str(SRC))
-
+from conftest import mock_app, mock_obj
 from app.main import app
-from app.db.session import get_db
-from app.models.activities import Activity, ActivityMetric, ActivityStatus
+from app.models.activities import ActivityStatus
 from app.enums import ActivitySource
 
 athlete_id = uuid.uuid4()
 today = datetime(2026, 1, 6, 12, 0, 0, tzinfo=timezone.utc)
 tomorrow = datetime(2026, 1, 7, 12, 0, 0, tzinfo=timezone.utc)
 yesterday = datetime(2026, 1, 5, 12, 0, 0, tzinfo=timezone.utc)
-
-
-@asynccontextmanager
-async def mock_app():
-    """Async context manager that provides a test client with mocked DB."""
-    mock_db = AsyncMock()
-
-    async def override_get_db():
-        yield mock_db
-
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            yield client
-    finally:
-        app.dependency_overrides.clear()
-
-
-def mock_obj(**kwargs):
-    """Create a MagicMock with given attributes."""
-    obj = MagicMock()
-    for k, v in kwargs.items():
-        setattr(obj, k, v)
-    return obj
 
 
 @pytest.mark.asyncio

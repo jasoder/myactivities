@@ -202,7 +202,7 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({ onOpenAI, onOpenAd
                   </div>
 
                   <span className="text-xs font-mono text-[#6272a4]">
-                    {dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {formatDateLabel(dayDate)}
                   </span>
                 </div>
 

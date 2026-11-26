@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import uuid
-import enum
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 from sqlalchemy import String, Float, Integer, Boolean, DateTime, Text, Enum, ForeignKey, func, Index
@@ -196,8 +195,8 @@ class TrainingPreference(Base):
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     def __repr__(self) -> str:

@@ -1,200 +1,85 @@
-# MyActivities API
+# MyActivities
 
-A FastAPI backend for tracking athlete activities with Strava integration.
+Full-stack endurance training tracker with Strava sync and an AI adaptive coach.
 
-## Architecture
+## Stack
 
-- **FastAPI** - Asynchronous web framework mounted at `/api/v1`
-- **SQLAlchemy 2.0 & PostgreSQL** - Async ORM and relational database with composite indexes
-- **JWT & Argon2id** - Secure Bearer token authentication
-- **AI Adaptive Engine** - Multi-provider adaptive training plan generation (1-60 days)
-- **Strava Integration** - OAuth token management, on-demand synchronization, and webhook events
-- **React 19 + TypeScript + Vite** - Frontend client located in `frontend/` with dynamic OpenAPI types
-- **Docker Compose** - Containerized database and backend application
+- **Backend**: FastAPI (`/api/v1`), SQLAlchemy 2.0 (async), PostgreSQL 14, JWT + Argon2id
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, TanStack Query, `openapi-fetch`
+- **AI Engine**: OpenAI-compatible or Anthropic LLM client with built-in physiological fallback
 
-## Quick Start
-
-### Prerequisites
-
-- Docker and Docker Compose installed
-- Python 3.11+ (for local development only)
-
-### Run with Docker Compose (Recommended)
-
-This starts PostgreSQL, initializes the database schema, and runs the API in a single command:
+## Quick Start (Docker)
 
 ```bash
 docker compose up --build -d
 ```
 
-The API will be available at `http://localhost:8000` (docs at `/docs`).
+- API & Swagger docs: `http://localhost:8000/api/v1/docs`
+- Stop containers: `docker compose down`
+- PostgreSQL shell: `docker compose exec db psql -U postgres -d myactivities-test`
 
-To run in the background:
+## Local Development
 
-```bash
-docker compose up -d
-```
-
-To stop and remove the containers (the database volume persists):
+### Backend
 
 ```bash
-docker compose down
+pip install -r requirements.txt
+python -m src.app.db.manage
+cd src && uvicorn app.main:app --reload
 ```
 
-### Inspecting the Database with PostgreSQL CLI (`psql`)
-
-To view tables, check schemas, and query data directly inside the PostgreSQL container:
-
-1. **Enter the `psql` console:**
-   ```bash
-   docker compose exec db psql -U postgres -d myactivities-test
-   ```
-2. **Common `psql` commands:**
-   - `\dt` — List all tables (`activities`, `athletes`, `activity_metrics`, `week_plans`, `training_preferences`)
-   - `\d activities` — View table schema, columns, and indexes
-   - `\x auto` — Toggle clean vertical/card output for wide rows
-   - `SELECT id, name, sport_type, status, planned_date FROM activities;` — Query workouts
-   - `SELECT id, email, name, strava_connected FROM athletes;` — Query athletes
-   - `\q` — Exit `psql`
-
-### Local Development (without Docker)
-
-If you prefer to run locally:
-
-1. **Start PostgreSQL:**
-   ```bash
-   docker run -d \
-     -e POSTGRES_USER=postgres \
-     -e POSTGRES_PASSWORD=myactivities \
-     -e POSTGRES_DB=myactivities-test \
-     -p 5432:5432 \
-     --name pg-db \
-     postgres:14
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Initialize the database:**
-   ```bash
-   python -m src.app.db.manage
-   ```
-
-4. **Start the development server:**
-   ```bash
-   cd src
-   uvicorn app.main:app --reload
-   ```
-
-### Frontend Development (React + TypeScript)
-
-The frontend is located in the `frontend/` directory and communicates with the backend via a typed `openapi-fetch` client.
-
-1. **Install frontend dependencies:**
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-2. **Start the development server with HMR:**
-   ```bash
-   npm run dev
-   ```
-   The frontend will be available at `http://localhost:5173`. Before starting, `npm run dev` automatically runs `predev` to pull the latest schema dynamically from the running backend.
-
-3. **Build and type check:**
-   ```bash
-   npm run build
-   ```
-
-4. **Regenerate API types manually (if needed):**
-   ```bash
-   npm run api:generate
-   ```
-
-### Running Backend Tests
+Run tests:
 
 ```bash
 pytest
 ```
 
-### Project Structure
+### Frontend
 
-```
-├── frontend/                # React 19 + TypeScript + Vite app
-│   ├── src/
-│   │   ├── api/             # Typed openapi-fetch client and dynamic schemas
-│   │   ├── components/      # UI components (Calendar, AI Chat, Analytics, Workouts)
-│   │   ├── context/         # AuthContext & JWT session provider
-│   │   └── hooks/           # TanStack React Query hooks
-│   └── package.json
-├── src/
-│   └── app/
-│       ├── main.py          # FastAPI app entry point
-│       ├── core/            # Security (JWT, Argon2id) & configuration
-│       ├── api/             # Routers (auth, user, activities, strava, ai)
-│       ├── db/              # SQLAlchemy session & database initialization
-│       ├── models/          # ORM models (Activity, Athlete, ActivityMetric, WeekPlan)
-│       ├── schemas/         # Pydantic validation schemas
-│       ├── services/        # Business logic & Strava sync service
-│       └── ai/              # Multi-provider LLM client, planner, & load analysis
-├── tests/                   # Pytest test suite (39 unit tests)
-├── docker-compose.yml       # PostgreSQL & API container configuration
-└── requirements.txt
+```bash
+cd frontend
+npm install
+npm run dev      # http://localhost:5173 (auto-syncs OpenAPI types)
+npm run build    # Type-check and production build
 ```
 
-### API Endpoints
+## Project Structure
 
-All endpoints are mounted under root path `/api/v1` and versioned under prefix `/myactivities`.
-Interactive Swagger UI documentation is available at `/api/v1/docs` (OpenAPI JSON at `/api/v1/docs/openapi.json`).
+```
+├── frontend/src/        # React SPA (api, components, context, hooks, utils)
+├── src/app/
+│   ├── api/routers/     # auth, user, activities, strava, ai
+│   ├── ai/              # LLM client, adaptive planner, CTL/ATL/TSB load analysis
+│   ├── core/            # Security (JWT, Argon2id)
+│   ├── db/              # Async SQLAlchemy session & init
+│   ├── integrations/    # Strava API client
+│   ├── models/          # Athlete, Activity, ActivityMetric, WeekPlan, TrainingPreference
+│   ├── schemas/         # Pydantic v2 schemas
+│   └── services/        # Business logic & Strava sync
+└── tests/               # Pytest suite
+```
 
-- **Authentication (`/myactivities/auth`)**:
-  - `POST /register` - Register a new athlete account (email & password)
-  - `POST /login` - Authenticate and obtain a JWT Bearer access token
+## API Endpoints (`/api/v1/myactivities`)
 
-- **User Self-Service (`/myactivities/user`)**:
-  - `GET /` - Fetch currently authenticated user profile
-  - `PUT /` - Update user profile (name, timezone, performance metrics, sports)
-  - `DELETE /` - Delete account and all associated data
-  - `DELETE /strava` - Disconnect Strava integration
-  - `GET /preferences` - Get athlete training preferences (rest days, weekly target hours)
-  - `PUT /preferences` - Update athlete training preferences
-  - `GET /activities` - Fetch calendar activities for date range (`start_date` to `end_date`)
+- **Auth (`/auth`)**: `POST /register`, `POST /login`
+- **User (`/user`)**: `GET|PUT|DELETE /`, `DELETE /strava`, `GET|PUT /preferences`, `GET /activities`
+- **Activities (`/activities`)**: `POST /`, `GET /detail/{id}`, `PUT|DELETE /{id}`
+- **Strava (`/strava`)**: `GET /auth-url`, `POST /oauth/callback`, `POST /sync`, `GET|POST /webhook`
+- **AI Coach (`/ai`)**: `GET /training-load`, `POST /generate-plan`, `POST /confirm-plan`, `GET /weekly-recap`
 
-- **Activities CRUD (`/myactivities/activities`)**:
-  - `POST /` - Create a new planned or completed activity
-  - `GET /detail/{activity_id}` - Retrieve activity details with 1:1 metrics
-  - `PUT /{activity_id}` - Update activity (status, date rescheduling, comments)
-  - `DELETE /{activity_id}` - Delete an activity
-
-- **Strava Integration (`/myactivities/strava`)**:
-  - `GET /auth-url` - Generate Strava OAuth authorization URL
-  - `POST /oauth/callback` - Handle OAuth exchange code
-  - `POST /sync` - Trigger sync of athlete Strava activities
-  - `GET /webhook` - Webhook verification endpoint (Strava hub challenge)
-  - `POST /webhook` - Webhook push event ingestion and automated sync
-
-- **AI Adaptive Scheduling (`/myactivities/ai`)**:
-  - `GET /training-load` - Calculate historical training load (CTL, ATL, TSB, fatigue)
-  - `POST /generate-plan` - Preview an AI adaptive training plan (1 to 60 days)
-  - `POST /confirm-plan` - Confirm and schedule the generated workouts to the calendar
-  - `GET /weekly-recap` - Retrospective morning report / weekly summary comparing planned vs completed
-
-### Environment Variables
+## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:myactivities@db:5432/myactivities-test` | Database connection string |
-| `SECRET_KEY` | `dev-secret-key-change-in-production` | Secret key for JWT signing |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:myactivities@db:5432/myactivities-test` | Async PostgreSQL URL |
+| `SECRET_KEY` | `dev-secret-key-change-in-production` | JWT signing key |
 | `STRAVA_CLIENT_ID` | - | Strava OAuth client ID |
 | `STRAVA_CLIENT_SECRET` | - | Strava OAuth client secret |
-| `STRAVA_VERIFY_TOKEN` | `STRAVA_WEBHOOK_VERIFY_TOKEN` | Verification token for Strava webhooks |
-| `AI_API_URL` | - | URL for AI service (OpenAI-compatible or Anthropic endpoint) |
-| `AI_API_KEY` | - | API key for AI provider |
-| `AI_MODEL` | - | Model identifier for AI completions |
-| `ALLOWED_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins (comma-separated) |
+| `STRAVA_VERIFY_TOKEN` | `STRAVA_WEBHOOK_VERIFY_TOKEN` | Strava webhook verify token |
+| `AI_API_URL` | - | OpenAI-compatible or Anthropic endpoint |
+| `AI_API_KEY` | - | AI provider API key |
+| `AI_MODEL` | - | AI model name |
+| `ALLOWED_ORIGINS` | `http://localhost:5173,...` | Comma-separated CORS origins |
 
 ## License
 

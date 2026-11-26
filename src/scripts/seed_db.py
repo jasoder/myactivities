@@ -4,8 +4,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
 from app.db.base import async_session
 from app.models.athlete import Athlete
 from app.models.activities import Activity, ActivityMetric, ActivityStatus

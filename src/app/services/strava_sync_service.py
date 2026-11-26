@@ -8,8 +8,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
 
 from app.models.athlete import Athlete
 from app.models.activities import Activity, ActivityMetric, ActivityStatus
@@ -134,7 +133,7 @@ async def _upsert_strava_activity(
     # Map Strava data to Activity model
     start_date = activity_data.get("start_date_local") or activity_data.get("start_date")
     if isinstance(start_date, str):
-        start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        start_date = datetime.fromisoformat(start_date)
 
     sport_type = _map_strava_sport_type(activity_data.get("type", "").lower())
     distance_m = float(activity_data.get("distance")) if activity_data.get("distance") is not None else None
@@ -239,53 +238,3 @@ def _map_strava_sport_type(strava_type: str) -> str:
         'stand_up_paddling': 'water_sports',
     }
     return mapping.get(strava_type, strava_type.replace('_', ' '))
-
-
-async def sync_all_athlete_activities(
-    athlete_id: str,
-    db: AsyncSession,
-    days_back: int = 365
-) -> Dict[str, Any]:
-    """
-    Full sync for an athlete - fetches all activities within date range.
-    Used when Strava connection is first established or data might be missing.
-    """
-    from datetime import timedelta
-
-    before = datetime.now(timezone.utc)
-    after = before - timedelta(days=days_back)
-
-    strava_client = StravaClient((await db.execute(
-        select(Athlete.access_token).where(Athlete.id == athlete_id)
-    )).scalar_one_or_none())
-
-    all_activities = []
-    page = 1
-
-    while True:
-        activities = await strava_client.get_activities(
-            before=before,
-            after=after,
-            page=page,
-            per_page=100
-        )
-
-        if not activities:
-            break
-
-        all_activities.extend(activities)
-        page += 1
-
-    await strava_client.client.aclose()
-
-    results = {'processed': 0, 'new': 0, 'skipped': 0}
-
-    for activity_data in all_activities:
-        result = await _upsert_strava_activity(db, athlete_id, activity_data)
-        if result:
-            results['new'] += 1
-        else:
-            results['skipped'] += 1
-        results['processed'] += 1
-
-    return results

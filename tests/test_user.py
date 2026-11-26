@@ -1,60 +1,27 @@
 import pytest
-import sys
-from pathlib import Path
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch, MagicMock
-from httpx import AsyncClient, ASGITransport
-from contextlib import asynccontextmanager
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-sys.path.insert(0, str(SRC))
-
+from conftest import mock_app, make_mock_athlete as _base_mock_athlete
 from app.main import app
-from app.db.session import get_db
-from app.models.athlete import Athlete
 from app.services.auth_service import get_current_athlete
 
 
-@asynccontextmanager
-async def mock_app():
-    """Async context manager that provides a test client with mocked DB."""
-    mock_db = AsyncMock()
-
-    async def override_get_db():
-        yield mock_db
-
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            yield client
-    finally:
-        app.dependency_overrides.clear()
-
-
 def make_mock_athlete(athlete_id=None, email="user@example.com", name="Test User"):
-    athlete = MagicMock(spec=Athlete)
-    athlete.id = athlete_id or uuid.uuid4()
-    athlete.email = email
-    athlete.name = name
-    athlete.hashed_password = "hashed"
-    athlete.ftp = 250
-    athlete.threshold_pace = 4.2
-    athlete.weight = 72.5
-    athlete.max_hr = 190
-    athlete.lthr = 172
-    athlete.strava_id = None
-    athlete.access_token = None
-    athlete.refresh_token = None
-    athlete.token_expires_at = None
-    athlete.preferred_sports = ["Run", "Ride"]
-    athlete.timezone = "Europe/Helsinki"
-    athlete.weekly_training_hours = 8.5
-    athlete.ai_enabled = True
-    athlete.created_at = datetime.now(timezone.utc)
-    athlete.updated_at = datetime.now(timezone.utc)
-    return athlete
+    return _base_mock_athlete(
+        athlete_id=athlete_id,
+        email=email,
+        name=name,
+        ftp=250,
+        threshold_pace=4.2,
+        weight=72.5,
+        max_hr=190,
+        lthr=172,
+        preferred_sports=["Run", "Ride"],
+        timezone_str="Europe/Helsinki",
+        weekly_training_hours=8.5,
+    )
 
 
 @pytest.mark.asyncio

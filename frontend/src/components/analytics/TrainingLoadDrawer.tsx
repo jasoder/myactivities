@@ -1,7 +1,8 @@
 import React from "react";
 import { useTrainingLoad, useWeeklyRecap } from "../../hooks/useQueries";
-import { X, TrendingUp, HeartPulse, BatteryCharging, Zap, Award } from "lucide-react";
+import { TrendingUp, HeartPulse, BatteryCharging, Zap, Award } from "lucide-react";
 import { formatISODate, getMonday } from "../../utils/date";
+import { ModalDrawer } from "../layout/ModalDrawer";
 
 interface TrainingLoadDrawerProps {
   isOpen: boolean;
@@ -13,10 +14,8 @@ export const TrainingLoadDrawer: React.FC<TrainingLoadDrawerProps> = ({ isOpen, 
   const { data: loadDataRaw, isLoading: isLoadLoading } = useTrainingLoad(isOpen);
   const { data: recapDataRaw, isLoading: isRecapLoading } = useWeeklyRecap(currentMondayStr, isOpen);
 
-  if (!isOpen) return null;
-
-  const loadData = loadDataRaw as any;
-  const recapData = recapDataRaw as any;
+  const loadData = loadDataRaw as Record<string, any> | undefined;
+  const recapData = recapDataRaw as Record<string, any> | undefined;
 
   const ctl = Math.round(loadData?.ctl ?? 0);
   const atl = Math.round(loadData?.atl ?? 0);
@@ -24,29 +23,16 @@ export const TrainingLoadDrawer: React.FC<TrainingLoadDrawerProps> = ({ isOpen, 
   const formStatus = loadData?.form_status || (tsb > 5 ? "Fresh" : tsb < -10 ? "Fatigued" : "Optimal");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-[#282a36] border border-[#44475a] rounded-t-lg sm:rounded-lg p-5 shadow-2xl space-y-5 max-h-[85vh] overflow-y-auto animate-in fade-in duration-150">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#44475a]/60 pb-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-md bg-[#8be9fd]/15 text-[#8be9fd] border border-[#8be9fd]/30">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[#f8f8f2]">Training Load & Physiology</h3>
-              <p className="text-[11px] text-[#6272a4]">Chronic & Acute Workload Analytics</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/50 transition-all"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* CTL / ATL / TSB Gauges */}
+    <ModalDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Training Load & Physiology"
+      subtitle="Chronic & Acute Workload Analytics"
+      icon={<TrendingUp className="w-4 h-4" />}
+      iconClassName="bg-[#8be9fd]/15 text-[#8be9fd] border-[#8be9fd]/30"
+      panelClassName="max-w-lg rounded-t-lg sm:rounded-lg max-h-[85vh] flex flex-col"
+    >
+      <div className="p-5 space-y-5 overflow-y-auto">
         {isLoadLoading ? (
           <div className="p-8 text-center text-xs text-[#6272a4] animate-pulse">
             Calculating physiological load...
@@ -73,11 +59,7 @@ export const TrainingLoadDrawer: React.FC<TrainingLoadDrawerProps> = ({ isOpen, 
               <div className="flex items-center justify-center gap-1 text-[10px] font-mono text-[#6272a4]">
                 <Zap className="w-3 h-3 text-[#bd93f9]" /> TSB
               </div>
-              <p
-                className={`text-xl font-mono font-bold mt-1 ${
-                  tsb >= 0 ? "text-[#8be9fd]" : "text-[#ffb86c]"
-                }`}
-              >
+              <p className={`text-xl font-mono font-bold mt-1 ${tsb >= 0 ? "text-[#8be9fd]" : "text-[#ffb86c]"}`}>
                 {tsb > 0 ? `+${tsb}` : tsb}
               </p>
               <span className="text-[10px] font-medium text-[#f8f8f2]">{formStatus}</span>
@@ -85,7 +67,6 @@ export const TrainingLoadDrawer: React.FC<TrainingLoadDrawerProps> = ({ isOpen, 
           </div>
         )}
 
-        {/* Weekly Recap / Morning Report */}
         <div className="space-y-2.5 pt-2 border-t border-[#44475a]/60">
           <div className="flex items-center gap-2">
             <Award className="w-4 h-4 text-[#bd93f9]" />
@@ -122,6 +103,6 @@ export const TrainingLoadDrawer: React.FC<TrainingLoadDrawerProps> = ({ isOpen, 
           )}
         </div>
       </div>
-    </div>
+    </ModalDrawer>
   );
 };

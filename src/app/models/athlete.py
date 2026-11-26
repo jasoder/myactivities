@@ -1,7 +1,7 @@
-from sqlalchemy import String, Integer, Float, DateTime
+from sqlalchemy import String, Integer, Float, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from datetime import datetime, timezone
+from datetime import datetime
 from app.db.base import Base
 from typing import Optional, TYPE_CHECKING, List
 import uuid
@@ -41,13 +41,17 @@ class Athlete(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        onupdate=func.now(),
     )
+
+    @property
+    def strava_connected(self) -> bool:
+        return bool(self.strava_id or self.access_token)
 
     # Relationships - New unified Activity model
     activities: Mapped[List["Activity"]] = relationship(

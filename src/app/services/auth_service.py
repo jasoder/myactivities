@@ -74,17 +74,24 @@ async def authenticate_user(db: AsyncSession, login_data: LoginRequest) -> tuple
     return athlete, token
 
 
-async def get_current_athlete(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
-    db: AsyncSession = Depends(get_db),
-) -> Athlete:
-    """FastAPI dependency to extract and validate the authenticated athlete from the Bearer token."""
+def resolve_target_athlete_id(
+    explicit_id: Optional[uuid.UUID],
+    current_athlete: Optional[Athlete],
+    detail: str = "athlete_id or Bearer authentication is required.",
+) -> uuid.UUID:
+    """Resolve explicit athlete_id or fall back to authenticated athlete, raising 400 if neither is present."""
+    target_id = explicit_id or (current_athlete.id if current_athlete else None)
+    if not target_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+    return target_id
+
+
+async def _resolve_athlete(
+    credentials: Optional[HTTPAuthorizationCredentials],
+    db: AsyncSession,
+) -> tuple[Optional[Athlete], Optional[str]]:
     if not credentials or not credentials.credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication token required.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return None, "Authentication token required."
 
     token = credentials.credentials.strip().strip("\"'")
     if token.lower().startswith("bearer "):
@@ -92,38 +99,36 @@ async def get_current_athlete(
 
     payload = decode_access_token(token)
     if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired authentication token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return None, "Invalid or expired authentication token."
 
     athlete_id_str = payload.get("sub")
     if not athlete_id_str:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token missing subject identifier.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return None, "Token missing subject identifier."
 
     try:
         athlete_id = uuid.UUID(athlete_id_str)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Malformed subject identifier in token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        return None, "Malformed subject identifier in token."
 
     result = await db.execute(select(Athlete).where(Athlete.id == athlete_id))
     athlete = result.scalar_one_or_none()
     if not athlete:
+        return None, "Athlete account not found."
+    return athlete, None
+
+
+async def get_current_athlete(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> Athlete:
+    """FastAPI dependency to extract and validate the authenticated athlete from the Bearer token."""
+    athlete, err_detail = await _resolve_athlete(credentials, db)
+    if not athlete:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Athlete account not found.",
+            detail=err_detail or "Authentication failed.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
     return athlete
 
 
@@ -132,26 +137,6 @@ async def get_optional_current_athlete(
     db: AsyncSession = Depends(get_db),
 ) -> Optional[Athlete]:
     """FastAPI dependency to extract the authenticated athlete if present, otherwise returns None."""
-    if not credentials or not credentials.credentials:
-        return None
-
-    token = credentials.credentials.strip().strip("\"'")
-    if token.lower().startswith("bearer "):
-        token = token[7:].strip().strip("\"'")
-
-    payload = decode_access_token(token)
-    if not payload:
-        return None
-
-    athlete_id_str = payload.get("sub")
-    if not athlete_id_str:
-        return None
-
-    try:
-        athlete_id = uuid.UUID(athlete_id_str)
-    except ValueError:
-        return None
-
-    result = await db.execute(select(Athlete).where(Athlete.id == athlete_id))
-    return result.scalar_one_or_none()
+    athlete, _ = await _resolve_athlete(credentials, db)
+    return athlete
 

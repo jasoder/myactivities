@@ -14,43 +14,6 @@ from app.schemas.activities import (
 )
 
 
-def _build_activities_entry(
-    *,
-    id: uuid.UUID,
-    date: datetime,
-    title: str,
-    type: str,
-    status: str,
-    distance_m: Optional[float],
-    duration_s: Optional[int],
-    training_load: Optional[float],
-) -> ActivitiesEntry:
-    """Factory function to build ActivitiesEntry with ActivitiesSummary."""
-    return ActivitiesEntry(
-        id=id,
-        date=date,
-        title=title or "Untitled Activity",
-        type=type or "Other",
-        status=status,
-        data=ActivitiesSummary(
-            distance_m=distance_m,
-            duration_s=duration_s,
-            training_load=training_load,
-        ),
-    )
-
-
-async def get_activities_by_athlete(
-    db: AsyncSession, athlete_id: uuid.UUID
-) -> List[Activity]:
-    result = await db.execute(
-        select(Activity)
-        .where(Activity.athlete_id == athlete_id)
-        .options(selectinload(Activity.metrics))
-    )
-    return list(result.scalars().all())
-
-
 async def get_activity_by_id(
     db: AsyncSession, activity_id: uuid.UUID
 ) -> Optional[Activity]:
@@ -65,7 +28,7 @@ async def get_activity_by_id(
 async def get_activities_by_date_range(
     db: AsyncSession, athlete_id: uuid.UUID, start_date: datetime, end_date: datetime
 ) -> List[Activity]:
-    # Query activities where planned_date or actual_date falls within [start_date, end_date]
+    """Query activities where planned_date or actual_date falls within [start_date, end_date]."""
     result = await db.execute(
         select(Activity)
         .where(
@@ -109,7 +72,6 @@ async def update_activity(
 ) -> Activity:
     update_data = activity_in.model_dump(exclude_unset=True)
 
-    # If modifying a completed or matched activity without explicit status override, set to modified
     if db_activity.status == ActivityStatus.completed and "status" not in update_data:
         db_activity.status = ActivityStatus.modified
 
@@ -121,28 +83,6 @@ async def update_activity(
     return db_activity
 
 
-async def mark_missed_activities(db: AsyncSession, before_date: Optional[datetime] = None) -> int:
-    """
-    Finds planned activities where planned_date is before the threshold and no Strava match exists,
-    and transitions their status to missed.
-    """
-    cutoff = before_date or datetime.now(timezone.utc)
-    result = await db.execute(
-        select(Activity).where(
-            Activity.status == ActivityStatus.planned,
-            Activity.planned_date < cutoff,
-            Activity.matched_strava_activity_id.is_(None),
-        )
-    )
-    overdue = result.scalars().all()
-    count = len(overdue)
-    for act in overdue:
-        act.status = ActivityStatus.missed
-    if count > 0:
-        await db.commit()
-    return count
-
-
 async def delete_activity(db: AsyncSession, activity: Activity) -> None:
     await db.delete(activity)
     await db.commit()
@@ -152,46 +92,43 @@ async def get_activities_events(
     db: AsyncSession, athlete_id: uuid.UUID, start_date: datetime, end_date: datetime
 ) -> List[ActivitiesEntry]:
     activities = await get_activities_by_date_range(db, athlete_id, start_date, end_date)
-
     events: List[ActivitiesEntry] = []
 
     for a in activities:
-        # Determine effective date
-        date_val = a.actual_date if a.status == ActivityStatus.completed else a.planned_date
-        if not date_val:
-            date_val = a.planned_date or a.actual_date
+        date_val = (
+            (a.actual_date or a.planned_date)
+            if a.status == ActivityStatus.completed
+            else (a.planned_date or a.actual_date)
+        )
         if not date_val:
             continue
 
-        # Extract duration & distance from metrics if available, else from activity fields
         metrics = a.metrics
         distance = (
             metrics.distance_m
             if (metrics and metrics.distance_m is not None)
             else a.distance_m
         )
-        duration_s = (
-            (metrics.duration_min * 60)
+        duration_min = (
+            metrics.duration_min
             if (metrics and metrics.duration_min is not None)
-            else (a.duration_min * 60 if a.duration_min is not None else None)
-        )
-        training_load = (
-            a.intensity
+            else a.duration_min
         )
 
         events.append(
-            _build_activities_entry(
+            ActivitiesEntry(
                 id=a.id,
                 date=date_val,
                 title=a.name or "Untitled Activity",
                 type=a.sport_type or "Other",
                 status=a.status.value,
-                distance_m=distance,
-                duration_s=duration_s,
-                training_load=training_load,
+                data=ActivitiesSummary(
+                    distance_m=distance,
+                    duration_s=duration_min * 60 if duration_min is not None else None,
+                    training_load=a.intensity,
+                ),
             )
         )
 
     events.sort(key=lambda x: x.date)
     return events
-

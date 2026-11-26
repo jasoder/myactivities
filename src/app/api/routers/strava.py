@@ -1,12 +1,14 @@
 import os
+import uuid
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime, timezone
+
 from app.db.session import get_db
 from app.models.athlete import Athlete
 from app.integrations.strava.client import StravaClient
-import uuid
+from app.services.auth_service import get_optional_current_athlete, resolve_target_athlete_id
 
 router = APIRouter()
 
@@ -22,10 +24,6 @@ async def get_strava_auth_url(
             status_code=500, detail="STRAVA_CLIENT_ID environment variable not set"
         )
     return {"auth_url": StravaClient.get_authorization_url(client_id, redirect_uri)}
-
-
-from typing import Optional
-from app.services.auth_service import get_optional_current_athlete
 
 
 @router.post("/oauth/callback")
@@ -46,7 +44,6 @@ async def strava_oauth_callback(
         raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
 
 
-
 @router.post("/sync")
 async def sync_strava_activities(
     athlete_id: Optional[str] = Query(None, description="Athlete ID (optional if authenticated)"),
@@ -55,19 +52,13 @@ async def sync_strava_activities(
     current_athlete: Optional[Athlete] = Depends(get_optional_current_athlete),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Sync Strava activities for an athlete.
-
-    Called by frontend on calendar mount to refresh activities.
-    If force=false (default), only syncs activities since last sync.
-    If force=true, does a full sync of all activities.
-    """
-    target_athlete_id = athlete_id or (str(current_athlete.id) if current_athlete else None)
-    if not target_athlete_id:
-        raise HTTPException(
-            status_code=400,
-            detail="athlete_id query parameter or Bearer authentication is required",
+    """Sync Strava activities for an athlete."""
+    parsed_id = uuid.UUID(athlete_id) if athlete_id else None
+    target_athlete_id = str(
+        resolve_target_athlete_id(
+            parsed_id, current_athlete, "athlete_id query parameter or Bearer authentication is required"
         )
+    )
     try:
         # Import here to avoid circular imports
         from app.services.strava_sync_service import sync_athlete_activities

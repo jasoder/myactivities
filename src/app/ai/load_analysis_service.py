@@ -1,11 +1,10 @@
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.models.activities import Activity, ActivityStatus
-from app.models.athlete import Athlete
 
 
 async def calculate_athlete_training_load(

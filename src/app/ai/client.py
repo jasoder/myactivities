@@ -161,11 +161,10 @@ class AIClient:
 
         # 6. Parse Start Date & Existing Planned Workouts
         start_date = None
-        date_match = re.search(r"Plan start date:\s*([0-9T:-]+)", user_prompt)
+        date_match = re.search(r"Plan start date:\s*([^\s\n]+)", user_prompt)
         if date_match:
             try:
-                clean_date_str = date_match.group(1).replace("Z", "+00:00")
-                start_date = datetime.fromisoformat(clean_date_str)
+                start_date = datetime.fromisoformat(date_match.group(1))
             except Exception:
                 pass
 
@@ -437,35 +436,53 @@ class AIClient:
             ],
         }
 
+        def _build_workout_entry(
+            day_offset: int,
+            template: Dict[str, Any],
+            duration_min: int,
+            distance_m: float,
+            name: Optional[str] = None,
+            extra_meta: Optional[Dict[str, Any]] = None,
+        ) -> Dict[str, Any]:
+            warmup_min = max(5, int(duration_min * 0.15))
+            cooldown_min = max(5, int(duration_min * 0.12))
+            main_min = max(5, duration_min - warmup_min - cooldown_min)
+            main_template = template["structure"]["main_set"][0]
+            plan_meta: Dict[str, Any] = {
+                "structure": {
+                    "warmup": {"duration_min": warmup_min, "description": template["structure"]["warmup"]["description"]},
+                    "main_set": [{
+                        "intervals": main_template["intervals"],
+                        "duration_min": main_min,
+                        "intensity": main_template["intensity"],
+                        "recovery_min": main_template.get("recovery_min", 2),
+                    }],
+                    "cooldown": {"duration_min": cooldown_min, "description": template["structure"]["cooldown"]["description"]},
+                },
+                "target_duration_min": duration_min,
+                "target_intensity": template["target_intensity"],
+                "reasoning": template["reasoning"],
+            }
+            if extra_meta:
+                plan_meta.update(extra_meta)
+            return {
+                "day_offset": day_offset,
+                "name": name or template["name"],
+                "sport_type": template["sport_type"],
+                "target_duration_min": duration_min,
+                "target_distance_m": distance_m,
+                "target_intensity": template["target_intensity"],
+                "plan_metadata": plan_meta,
+            }
+
         def build_targeted_workout(day_offset: int, sport: str, idx: int = 0) -> Dict[str, Any]:
             templates_for_sport = sport_templates.get(sport) or sport_templates["Run"]
             template = templates_for_sport[idx % len(templates_for_sport)]
             dur_match = re.search(r"(\d+)\s*(?:min|minute|minutes|m)\b", req_lower)
-            computed_duration = int(dur_match.group(1)) if dur_match else template["base_duration"]
-            computed_duration = max(15, computed_duration)
+            computed_duration = max(15, int(dur_match.group(1))) if dur_match else template["base_duration"]
             scale = computed_duration / max(15, template["base_duration"])
             computed_distance = round((template.get("target_distance_m") or 0.0) * scale, 1)
-            warmup_min = max(5, int(computed_duration * 0.15))
-            cooldown_min = max(5, int(computed_duration * 0.12))
-            main_min = max(5, computed_duration - warmup_min - cooldown_min)
-            return {
-                "day_offset": day_offset,
-                "name": template["name"],
-                "sport_type": template["sport_type"],
-                "target_duration_min": computed_duration,
-                "target_distance_m": computed_distance,
-                "target_intensity": template["target_intensity"],
-                "plan_metadata": {
-                    "structure": {
-                        "warmup": {"duration_min": warmup_min, "description": template["structure"]["warmup"]["description"]},
-                        "main_set": [{"intervals": template["structure"]["main_set"][0]["intervals"], "duration_min": main_min, "intensity": template["structure"]["main_set"][0]["intensity"], "recovery_min": template["structure"]["main_set"][0].get("recovery_min", 2)}],
-                        "cooldown": {"duration_min": cooldown_min, "description": template["structure"]["cooldown"]["description"]},
-                    },
-                    "target_duration_min": computed_duration,
-                    "target_intensity": template["target_intensity"],
-                    "reasoning": template["reasoning"],
-                },
-            }
+            return _build_workout_entry(day_offset, template, computed_duration, computed_distance)
 
         has_add_intent = any(re.search(rf"\b{v}\w*\b", req_lower) for v in add_verbs) or any(
             p in req_lower for p in ("two workouts", "2 workouts", "second workout", "two-a-day")
@@ -568,32 +585,16 @@ class AIClient:
                     
                     computed_duration = max(20, int(template["base_duration"] * volume_scale * deload_multiplier))
                     computed_distance = round(template["target_distance_m"] * volume_scale * deload_multiplier, 1) if template.get("target_distance_m") else 0.0
-
-                    # Adjust structure durations
-                    warmup_min = max(5, int(computed_duration * 0.15))
-                    cooldown_min = max(5, int(computed_duration * 0.12))
-                    main_min = computed_duration - warmup_min - cooldown_min
-
-                    workouts.append({
-                        "day_offset": day,
-                        "name": f"{template['name']}" if duration <= 7 else f"W{week_idx + 1} {template['name']}",
-                        "sport_type": template["sport_type"],
-                        "target_duration_min": computed_duration,
-                        "target_distance_m": computed_distance,
-                        "target_intensity": template["target_intensity"],
-                        "plan_metadata": {
-                            "structure": {
-                                "warmup": {"duration_min": warmup_min, "description": template["structure"]["warmup"]["description"]},
-                                "main_set": [{"intervals": template["structure"]["main_set"][0]["intervals"], "duration_min": main_min, "intensity": template["structure"]["main_set"][0]["intensity"], "recovery_min": template["structure"]["main_set"][0].get("recovery_min", 2)}],
-                                "cooldown": {"duration_min": cooldown_min, "description": template["structure"]["cooldown"]["description"]},
-                            },
-                            "target_duration_min": computed_duration,
-                            "target_intensity": template["target_intensity"],
-                            "reasoning": template["reasoning"],
-                            "week_number": week_idx + 1,
-                            "is_deload": is_deload,
-                        },
-                    })
+                    workouts.append(
+                        _build_workout_entry(
+                            day,
+                            template,
+                            computed_duration,
+                            computed_distance,
+                            name=template["name"] if duration <= 7 else f"W{week_idx + 1} {template['name']}",
+                            extra_meta={"week_number": week_idx + 1, "is_deload": is_deload},
+                        )
+                    )
 
         period_desc = f"{duration}-day progressive block" if duration > 7 else "7-day microcycle"
         notes_fragment = f" Focus: {split_notes or user_request}." if (split_notes or user_request) else ""
