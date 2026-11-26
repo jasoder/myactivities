@@ -9,6 +9,7 @@ import { TrainingLoadDrawer } from "./components/analytics/TrainingLoadDrawer";
 import { SettingsDrawer } from "./components/settings/SettingsDrawer";
 import { WorkoutModal } from "./components/workout/WorkoutModal";
 import { Activity, Loader2 } from "lucide-react";
+import { formatDateLabel } from "./utils/date";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,11 +63,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="text-xs font-mono text-[#6272a4]">
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            })}
+            {formatDateLabel(new Date(), true)}
           </div>
         </div>
       </header>
@@ -92,6 +89,7 @@ const Dashboard: React.FC = () => {
       <TrainingLoadDrawer isOpen={isAnalyticsOpen} onClose={() => setIsAnalyticsOpen(false)} />
       <SettingsDrawer isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <WorkoutModal
+        key={selectedAddDate ? selectedAddDate.toISOString() : "default"}
         isOpen={isAddWorkoutOpen}
         onClose={() => setIsAddWorkoutOpen(false)}
         defaultDate={selectedAddDate}

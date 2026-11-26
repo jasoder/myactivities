@@ -1,18 +1,9 @@
 import pytest
-import sys
-from pathlib import Path
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch, MagicMock
-from httpx import AsyncClient, ASGITransport
-from contextlib import asynccontextmanager
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-sys.path.insert(0, str(SRC))
-
+from conftest import mock_app, make_mock_athlete
 from app.main import app
-from app.db.session import get_db
 from app.core.security import (
     hash_password,
     verify_password,
@@ -20,47 +11,6 @@ from app.core.security import (
     create_access_token,
     decode_access_token,
 )
-from app.models.athlete import Athlete
-
-
-@asynccontextmanager
-async def mock_app():
-    """Async context manager that provides a test client with mocked DB."""
-    mock_db = AsyncMock()
-
-    async def override_get_db():
-        yield mock_db
-
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            yield client
-    finally:
-        app.dependency_overrides.clear()
-
-
-def make_mock_athlete(athlete_id=None, email="user@example.com", name="Test User", hashed_pwd=None):
-    athlete = MagicMock(spec=Athlete)
-    athlete.id = athlete_id or uuid.uuid4()
-    athlete.email = email
-    athlete.name = name
-    athlete.hashed_password = hashed_pwd
-    athlete.ftp = None
-    athlete.threshold_pace = None
-    athlete.weight = None
-    athlete.max_hr = None
-    athlete.lthr = None
-    athlete.strava_id = None
-    athlete.access_token = None
-    athlete.refresh_token = None
-    athlete.token_expires_at = None
-    athlete.preferred_sports = []
-    athlete.timezone = "UTC"
-    athlete.weekly_training_hours = None
-    athlete.ai_enabled = True
-    athlete.created_at = datetime.now(timezone.utc)
-    athlete.updated_at = datetime.now(timezone.utc)
-    return athlete
 
 
 # 1. Security Unit Tests

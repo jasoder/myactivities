@@ -1,7 +1,9 @@
+const isoDateFormatter = new Intl.DateTimeFormat("en-CA");
+
 export function getMonday(d: Date): Date {
   const date = new Date(d);
   const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
   date.setDate(diff);
   date.setHours(0, 0, 0, 0);
   return date;
@@ -14,14 +16,15 @@ export function addDays(d: Date, days: number): Date {
 }
 
 export function formatISODate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return isoDateFormatter.format(d);
 }
 
-export function formatDateLabel(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+export function formatDateLabel(d: Date, withWeekday = false): string {
+  return d.toLocaleDateString("en-US", {
+    ...(withWeekday ? { weekday: "short" } : {}),
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export function isSameDay(d1: Date, d2: Date): boolean {
@@ -32,4 +35,13 @@ export function isSameDay(d1: Date, d2: Date): boolean {
   );
 }
 
-export const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+export const FULL_DAY_NAMES = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;

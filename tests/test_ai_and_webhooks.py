@@ -1,45 +1,14 @@
 import pytest
-import sys
-from pathlib import Path
 import uuid
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, patch, MagicMock
-from httpx import AsyncClient, ASGITransport
-from contextlib import asynccontextmanager
 from urllib.parse import quote
 
-# Ensure src is on path
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-sys.path.insert(0, str(SRC))
-
+from conftest import mock_app, mock_obj
 from app.main import app
-from app.db.session import get_db
 
 athlete_id = uuid.uuid4()
 week_start = datetime(2026, 1, 5, 0, 0, 0, tzinfo=timezone.utc)
-
-
-@asynccontextmanager
-async def mock_app():
-    mock_db = AsyncMock()
-
-    async def override_get_db():
-        yield mock_db
-
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            yield client
-    finally:
-        app.dependency_overrides.clear()
-
-
-def mock_obj(**kwargs):
-    obj = MagicMock()
-    for k, v in kwargs.items():
-        setattr(obj, k, v)
-    return obj
 
 
 @pytest.mark.asyncio
@@ -361,8 +330,6 @@ async def test_ai_generate_and_confirm_plan_authenticated_self():
 async def test_ai_plan_honors_preferences_and_sports():
     """Verify that AI plan generation strictly honors athlete preferred sports, rest days, and volume."""
     from app.ai.planner_service import generate_adaptive_plan
-    from app.models.athlete import Athlete
-    from app.models.activities import TrainingPreference
 
     # Monday start date (2026-03-02 was a Monday)
     monday_start = datetime(2026, 3, 2, 0, 0, 0, tzinfo=timezone.utc)
@@ -428,8 +395,6 @@ async def test_ai_plan_honors_preferences_and_sports():
 async def test_ai_plan_guardrails_sanitize_rogue_sports():
     """Verify that planner_service guardrails catch rogue sports and enforce rest days even if LLM outputs Ride."""
     from app.ai.planner_service import generate_adaptive_plan
-    from app.models.athlete import Athlete
-    from app.models.activities import TrainingPreference
 
     monday_start = datetime(2026, 3, 2, 0, 0, 0, tzinfo=timezone.utc)
     mock_prefs = mock_obj(

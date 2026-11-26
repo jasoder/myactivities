@@ -11,7 +11,7 @@ from app.models.activities import Activity, ActivityMetric, WeekPlan, TrainingPr
 from app.enums import ActivitySource
 from app.ai.client import AIClient
 from app.ai.load_analysis_service import calculate_athlete_training_load
-from app.services import athlete_service
+from app.services import athlete_service, activities_service
 
 
 async def generate_adaptive_plan(
@@ -277,15 +277,6 @@ Fulfill the athlete's request dynamically using the {duration_days}-day calendar
     }
 
 
-async def generate_adaptive_week_plan(
-    db: AsyncSession,
-    athlete_id: uuid.UUID,
-    target_week_start: datetime,
-) -> Dict[str, Any]:
-    """Backwards-compatible convenience wrapper for 7-day plans."""
-    return await generate_adaptive_plan(db, athlete_id, start_date=target_week_start, duration_days=7)
-
-
 async def confirm_adaptive_plan(
     db: AsyncSession,
     athlete_id: uuid.UUID,
@@ -379,15 +370,6 @@ async def confirm_adaptive_plan(
     return week_plan
 
 
-async def confirm_adaptive_week_plan(
-    db: AsyncSession,
-    athlete_id: uuid.UUID,
-    plan_data: Dict[str, Any],
-) -> WeekPlan:
-    """Backwards-compatible convenience wrapper."""
-    return await confirm_adaptive_plan(db, athlete_id, plan_data)
-
-
 async def generate_weekly_recap(
     db: AsyncSession,
     athlete_id: uuid.UUID,
@@ -398,30 +380,10 @@ async def generate_weekly_recap(
     Compares completed vs planned activities for the designated time window.
     Includes planned, completed (including unplanned completed), missed, and modified activities.
     """
-    from sqlalchemy import or_, and_
     week_end = week_start + timedelta(days=duration_days)
-
-    # Query activities for that period (checking both planned_date and actual_date)
-    result = await db.execute(
-        select(Activity)
-        .where(
-            Activity.athlete_id == athlete_id,
-            or_(
-                and_(
-                    Activity.planned_date.isnot(None),
-                    Activity.planned_date >= week_start,
-                    Activity.planned_date < week_end,
-                ),
-                and_(
-                    Activity.actual_date.isnot(None),
-                    Activity.actual_date >= week_start,
-                    Activity.actual_date < week_end,
-                ),
-            ),
-        )
-        .options(selectinload(Activity.metrics))
+    activities = await activities_service.get_activities_by_date_range(
+        db, athlete_id, week_start, week_end - timedelta(microseconds=1)
     )
-    activities = result.scalars().all()
 
     planned_count = sum(1 for a in activities if a.status in [ActivityStatus.planned, ActivityStatus.missed])
     completed_count = sum(1 for a in activities if a.status in [ActivityStatus.completed, ActivityStatus.modified])

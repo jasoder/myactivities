@@ -1,18 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   api,
+  throwIfError,
+  unwrap,
   type ActivityCreate,
   type ActivityUpdate,
   type ConfirmPlanRequest,
   type AthleteUpdate,
-  type TrainingPreferenceUpdate
+  type TrainingPreferenceUpdate,
 } from "../api/client";
+
+function useInvalidateCalendar() {
+  const queryClient = useQueryClient();
+  return (extraKeys: unknown[][] = []) => {
+    queryClient.invalidateQueries({ queryKey: ["activities"] });
+    queryClient.invalidateQueries({ queryKey: ["training-load"] });
+    for (const key of extraKeys) {
+      queryClient.invalidateQueries({ queryKey: key });
+    }
+  };
+}
 
 export function useActivities(startDate: string, endDate: string, enabled = true) {
   return useQuery({
     queryKey: ["activities", startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await api.GET("/myactivities/user/activities", {
+      const res = await api.GET("/myactivities/user/activities", {
         params: {
           query: {
             start_date: `${startDate}T00:00:00Z`,
@@ -20,8 +33,7 @@ export function useActivities(startDate: string, endDate: string, enabled = true
           },
         },
       });
-      if (error) throw new Error((error as any)?.detail || "Failed to fetch activities");
-      return data?.events || [];
+      return unwrap(res, "Failed to fetch activities").events || [];
     },
     enabled: enabled && Boolean(startDate && endDate),
   });
@@ -32,11 +44,10 @@ export function useActivityDetail(activityId: string | null) {
     queryKey: ["activity-detail", activityId],
     queryFn: async () => {
       if (!activityId) return null;
-      const { data, error } = await api.GET("/myactivities/activities/detail/{activity_id}", {
+      const res = await api.GET("/myactivities/activities/detail/{activity_id}", {
         params: { path: { activity_id: activityId } },
       });
-      if (error) throw new Error((error as any)?.detail || "Failed to fetch activity");
-      return data;
+      return unwrap(res, "Failed to fetch activity");
     },
     enabled: Boolean(activityId),
   });
@@ -46,9 +57,8 @@ export function useTrainingLoad(enabled = true) {
   return useQuery({
     queryKey: ["training-load"],
     queryFn: async () => {
-      const { data, error } = await api.GET("/myactivities/ai/training-load");
-      if (error) throw new Error((error as any)?.detail || "Failed to fetch training load");
-      return data;
+      const res = await api.GET("/myactivities/ai/training-load");
+      return unwrap(res, "Failed to fetch training load");
     },
     enabled,
   });
@@ -58,68 +68,55 @@ export function useWeeklyRecap(weekStart: string, enabled = true) {
   return useQuery({
     queryKey: ["weekly-recap", weekStart],
     queryFn: async () => {
-      const { data, error } = await api.GET("/myactivities/ai/weekly-recap", {
+      const res = await api.GET("/myactivities/ai/weekly-recap", {
         params: {
           query: { week_start: `${weekStart}T00:00:00Z`, duration_days: 7 },
         },
       });
-      if (error) throw new Error((error as any)?.detail || "Failed to fetch weekly recap");
-      return data;
+      return unwrap(res, "Failed to fetch weekly recap");
     },
     enabled: enabled && Boolean(weekStart),
   });
 }
 
 export function useCreateActivity() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateCalendar();
   return useMutation({
-    mutationFn: async (newActivity: ActivityCreate) => {
-      const { data, error } = await api.POST("/myactivities/activities/", {
-        body: newActivity,
-      });
-      if (error) throw new Error((error as any)?.detail || "Failed to create activity");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
-      queryClient.invalidateQueries({ queryKey: ["training-load"] });
-    },
+    mutationFn: async (newActivity: ActivityCreate) =>
+      unwrap(
+        await api.POST("/myactivities/activities/", { body: newActivity }),
+        "Failed to create activity"
+      ),
+    onSuccess: () => invalidate(),
   });
 }
 
 export function useUpdateActivity() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateCalendar();
   return useMutation({
-    mutationFn: async ({ activityId, update }: { activityId: string; update: ActivityUpdate }) => {
-      const { data, error } = await api.PUT("/myactivities/activities/{activity_id}", {
-        params: { path: { activity_id: activityId } },
-        body: update,
-      });
-      if (error) throw new Error((error as any)?.detail || "Failed to update activity");
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
-      queryClient.invalidateQueries({ queryKey: ["activity-detail", variables.activityId] });
-      queryClient.invalidateQueries({ queryKey: ["training-load"] });
-    },
+    mutationFn: async ({ activityId, update }: { activityId: string; update: ActivityUpdate }) =>
+      unwrap(
+        await api.PUT("/myactivities/activities/{activity_id}", {
+          params: { path: { activity_id: activityId } },
+          body: update,
+        }),
+        "Failed to update activity"
+      ),
+    onSuccess: (_, variables) => invalidate([["activity-detail", variables.activityId]]),
   });
 }
 
 export function useDeleteActivity() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateCalendar();
   return useMutation({
     mutationFn: async (activityId: string) => {
       const { error } = await api.DELETE("/myactivities/activities/{activity_id}", {
         params: { path: { activity_id: activityId } },
       });
-      if (error) throw new Error((error as any)?.detail || "Failed to delete activity");
+      throwIfError(error, "Failed to delete activity");
       return true;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
-      queryClient.invalidateQueries({ queryKey: ["training-load"] });
-    },
+    onSuccess: () => invalidate(),
   });
 }
 
@@ -134,64 +131,54 @@ export function useGeneratePlan() {
       durationDays: number;
       prompt?: string;
     }) => {
-      const { data, error } = await api.POST("/myactivities/ai/generate-plan", {
+      const res = await api.POST("/myactivities/ai/generate-plan", {
         params: {
           query: {
             start_date: `${startDate}T00:00:00Z`,
             duration_days: durationDays,
             user_prompt: prompt || undefined,
-          } as any,
+          },
         },
       });
-      if (error) throw new Error((error as any)?.detail || "Plan generation failed");
-      return data as any;
+      return unwrap(res, "Plan generation failed") as Record<string, any>;
     },
   });
 }
 
 export function useConfirmPlan() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateCalendar();
   return useMutation({
-    mutationFn: async (planPayload: ConfirmPlanRequest) => {
-      const { data, error } = await api.POST("/myactivities/ai/confirm-plan", {
-        body: planPayload,
-      });
-      if (error) throw new Error((error as any)?.detail || "Failed to confirm plan");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
-      queryClient.invalidateQueries({ queryKey: ["training-load"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-recap"] });
-    },
+    mutationFn: async (planPayload: ConfirmPlanRequest) =>
+      unwrap(
+        await api.POST("/myactivities/ai/confirm-plan", { body: planPayload }),
+        "Failed to confirm plan"
+      ),
+    onSuccess: () => invalidate([["weekly-recap"]]),
   });
 }
 
 export function useSyncStrava() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateCalendar();
   return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await api.POST("/myactivities/strava/sync", {
-        params: { query: { force: true, limit: 50 } },
-      });
-      if (error) throw new Error((error as any)?.detail || "Strava sync failed");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
-      queryClient.invalidateQueries({ queryKey: ["training-load"] });
-    },
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/myactivities/strava/sync", {
+          params: { query: { force: true, limit: 50 } },
+        }),
+        "Strava sync failed"
+      ),
+    onSuccess: () => invalidate(),
   });
 }
 
 export function useTrainingPreferences(enabled = true) {
   return useQuery({
     queryKey: ["user-preferences"],
-    queryFn: async () => {
-      const { data, error } = await api.GET("/myactivities/user/preferences");
-      if (error) throw new Error((error as any)?.detail || "Failed to fetch preferences");
-      return data;
-    },
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/myactivities/user/preferences"),
+        "Failed to fetch preferences"
+      ),
     enabled,
   });
 }
@@ -199,13 +186,11 @@ export function useTrainingPreferences(enabled = true) {
 export function useUpdatePreferences() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (prefs: TrainingPreferenceUpdate) => {
-      const { data, error } = await api.PUT("/myactivities/user/preferences", {
-        body: prefs,
-      });
-      if (error) throw new Error((error as any)?.detail || "Failed to update preferences");
-      return data;
-    },
+    mutationFn: async (prefs: TrainingPreferenceUpdate) =>
+      unwrap(
+        await api.PUT("/myactivities/user/preferences", { body: prefs }),
+        "Failed to update preferences"
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-preferences"] });
     },
@@ -215,16 +200,14 @@ export function useUpdatePreferences() {
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (profile: AthleteUpdate) => {
-      const { data, error } = await api.PUT("/myactivities/user", {
-        body: profile,
-      });
-      if (error) throw new Error((error as any)?.detail || "Failed to update profile");
-      return data;
-    },
-    onSuccess: () => {
+    mutationFn: async (profile: AthleteUpdate) =>
+      unwrap(
+        await api.PUT("/myactivities/user", { body: profile }),
+        "Failed to update profile"
+      ),
+    onSuccess: (updatedAthlete) => {
+      queryClient.setQueryData(["user-profile"], updatedAthlete);
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
     },
   });
 }
-
