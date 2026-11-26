@@ -9,7 +9,8 @@ import {
   CalendarCheck,
   CheckCircle2,
   ArrowRight,
-  Loader2
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { formatISODate, getMonday } from "../../utils/date";
 
@@ -30,7 +31,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ isOpen, onClose }) =
     {
       id: "initial",
       sender: "ai",
-      text: "Hello! I am your AI Endurance Coach. Tell me what you would like to plan (e.g. 'Plan 2 weeks for building aerobic base', 'Create a 4-week block with a deload', or 'Prepare me for a 10k').",
+      text: "Hello! I am your AI Endurance Coach. Tell me what you would like to plan, change, or remove (e.g. 'Plan 2 weeks for building aerobic base', 'Change this week to focus on running', or 'Remove Wednesday's workout').",
     },
   ]);
   const [inputText, setInputText] = useState("");
@@ -149,67 +150,126 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ isOpen, onClose }) =
                   <p>{msg.text}</p>
 
                   {/* Plan Preview Card inside chat */}
-                  {msg.planPreview && (
-                    <div className="mt-2.5 p-2.5 rounded-md bg-[#282a36] border border-[#bd93f9]/40 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#bd93f9] flex items-center gap-1">
-                          <CalendarCheck className="w-3 h-3" /> Proposed Workouts
-                        </span>
-                        <span className="text-[10px] font-mono text-[#6272a4]">
-                          {msg.planPreview.workouts?.length || 0} sessions
-                        </span>
-                      </div>
+                  {msg.planPreview && ((msg.planPreview.workouts?.length || 0) > 0 || (msg.planPreview.removed_workouts?.length || 0) > 0) && (() => {
+                    const proposedWorkouts = msg.planPreview.workouts || [];
+                    const removedWorkouts = msg.planPreview.removed_workouts || [];
+                    const hasProposed = proposedWorkouts.length > 0;
+                    const hasRemoved = removedWorkouts.length > 0;
 
-                      <div className="max-h-44 overflow-y-auto space-y-1 pr-1">
-                        {msg.planPreview.workouts?.slice(0, 10).map((w: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="p-1.5 rounded bg-[#1e1f29] border border-[#44475a]/50 flex items-center justify-between text-[11px]"
-                          >
-                            <span className="font-medium text-[#f8f8f2] truncate">
-                              Day {w.day_offset + 1}: {w.name}
-                            </span>
-                            <span className="text-[#6272a4] font-mono shrink-0 ml-2">
-                              {w.target_duration_min}m ({w.sport_type})
-                            </span>
+                    const confirmLabel = hasRemoved && !hasProposed
+                      ? "Confirm & Remove Workouts"
+                      : hasRemoved && hasProposed
+                      ? "Confirm & Replace Workouts"
+                      : "Confirm & Schedule Plan";
+
+                    const confirmedLabel = hasRemoved && !hasProposed
+                      ? "Workouts Removed from Calendar"
+                      : hasRemoved && hasProposed
+                      ? "Plan Updated on Calendar"
+                      : "Plan Scheduled to Calendar";
+
+                    return (
+                      <div className="mt-2.5 p-2.5 rounded-md bg-[#282a36] border border-[#bd93f9]/40 space-y-2.5">
+                        {hasRemoved && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#ff5555] flex items-center gap-1">
+                                <Trash2 className="w-3 h-3" /> Workouts to Remove
+                              </span>
+                              <span className="text-[10px] font-mono text-[#6272a4]">
+                                {removedWorkouts.length} session{removedWorkouts.length === 1 ? "" : "s"}
+                              </span>
+                            </div>
+
+                            <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                              {removedWorkouts.slice(0, 10).map((w: any, idx: number) => (
+                                <div
+                                  key={w.id || idx}
+                                  className="p-1.5 rounded bg-[#1e1f29] border border-[#ff5555]/30 flex items-center justify-between text-[11px]"
+                                >
+                                  <span className="font-medium text-[#f8f8f2] line-through opacity-80 truncate">
+                                    {w.planned_date ? `${w.planned_date.slice(0, 10)}: ` : ""}{w.name}
+                                  </span>
+                                  <span className="text-[#ff5555]/80 font-mono shrink-0 ml-2">
+                                    {w.duration_min ?? 0}m ({w.sport_type})
+                                  </span>
+                                </div>
+                              ))}
+                              {removedWorkouts.length > 10 && (
+                                <p className="text-[10px] text-center text-[#6272a4] italic">
+                                  + {removedWorkouts.length - 10} more to remove
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        ))}
-                        {msg.planPreview.workouts?.length > 10 && (
-                          <p className="text-[10px] text-center text-[#6272a4] italic">
-                            + {msg.planPreview.workouts.length - 10} more sessions
-                          </p>
                         )}
-                      </div>
 
-                      {/* Confirm Action Button */}
-                      <button
-                        onClick={() => handleConfirmPlan(msg.planPreview, msg.id)}
-                        disabled={isConfirmed || confirmMutation.isPending}
-                        className={`w-full py-1.5 px-3 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
-                          isConfirmed
-                            ? "bg-[#50fa7b]/20 text-[#50fa7b] border border-[#50fa7b]/40 cursor-default"
-                            : "bg-[#bd93f9] hover:bg-[#caa5fb] text-[#282a36]"
-                        }`}
-                      >
-                        {isConfirmed ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Plan Scheduled to Calendar</span>
-                          </>
-                        ) : confirmMutation.isPending ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Scheduling...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Confirm & Schedule Plan</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </>
+                        {hasProposed && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#bd93f9] flex items-center gap-1">
+                                <CalendarCheck className="w-3 h-3" /> Proposed Workouts
+                              </span>
+                              <span className="text-[10px] font-mono text-[#6272a4]">
+                                {proposedWorkouts.length} session{proposedWorkouts.length === 1 ? "" : "s"}
+                              </span>
+                            </div>
+
+                            <div className="max-h-44 overflow-y-auto space-y-1 pr-1">
+                              {proposedWorkouts.slice(0, 10).map((w: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  className="p-1.5 rounded bg-[#1e1f29] border border-[#44475a]/50 flex items-center justify-between text-[11px]"
+                                >
+                                  <span className="font-medium text-[#f8f8f2] truncate">
+                                    Day {w.day_offset + 1}: {w.name}
+                                  </span>
+                                  <span className="text-[#6272a4] font-mono shrink-0 ml-2">
+                                    {w.duration_min ?? w.target_duration_min ?? 0}m ({w.sport_type})
+                                  </span>
+                                </div>
+                              ))}
+                              {proposedWorkouts.length > 10 && (
+                                <p className="text-[10px] text-center text-[#6272a4] italic">
+                                  + {proposedWorkouts.length - 10} more sessions
+                                </p>
+                              )}
+                            </div>
+                          </div>
                         )}
-                      </button>
-                    </div>
-                  )}
+
+                        {/* Confirm Action Button */}
+                        <button
+                          onClick={() => handleConfirmPlan(msg.planPreview, msg.id)}
+                          disabled={isConfirmed || confirmMutation.isPending}
+                          className={`w-full py-1.5 px-3 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                            isConfirmed
+                              ? "bg-[#50fa7b]/20 text-[#50fa7b] border border-[#50fa7b]/40 cursor-default"
+                              : hasRemoved && !hasProposed
+                              ? "bg-[#ff5555] hover:bg-[#ff6e6e] text-[#282a36]"
+                              : "bg-[#bd93f9] hover:bg-[#caa5fb] text-[#282a36]"
+                          }`}
+                        >
+                          {isConfirmed ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>{confirmedLabel}</span>
+                            </>
+                          ) : confirmMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Applying...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>{confirmLabel}</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {!isAI && (
@@ -236,7 +296,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({ isOpen, onClose }) =
         >
           <input
             type="text"
-            placeholder="Ask AI to plan 4 weeks, change workout, or adjust load..."
+            placeholder="Ask AI to plan, change, or remove workouts..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             className="flex-1 px-3 py-2 rounded-md bg-[#1e1f29] border border-[#44475a] text-[#f8f8f2] text-xs focus:outline-none focus:border-[#bd93f9] transition-all"

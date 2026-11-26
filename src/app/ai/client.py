@@ -159,7 +159,7 @@ class AIClient:
         if req_match and req_match.group(1).strip() not in ("None specified", "None"):
             user_request = req_match.group(1).strip()
 
-        # 6. Parse Start Date
+        # 6. Parse Start Date & Existing Planned Workouts
         start_date = None
         date_match = re.search(r"Plan start date:\s*([0-9T:-]+)", user_prompt)
         if date_match:
@@ -168,6 +168,78 @@ class AIClient:
                 start_date = datetime.fromisoformat(clean_date_str)
             except Exception:
                 pass
+
+        existing_workouts: List[Dict[str, Any]] = []
+        existing_match = re.search(r"Existing Planned Workouts in Window:\s*(\[[^\n]*\])", user_prompt)
+        if existing_match:
+            try:
+                existing_workouts = json.loads(existing_match.group(1))
+            except Exception:
+                existing_workouts = []
+
+        WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        weekday_map = {
+            "monday": "Monday", "mon": "Monday",
+            "tuesday": "Tuesday", "tue": "Tuesday", "tues": "Tuesday",
+            "wednesday": "Wednesday", "wed": "Wednesday",
+            "thursday": "Thursday", "thu": "Thursday", "thur": "Thursday", "thurs": "Thursday",
+            "friday": "Friday", "fri": "Friday",
+            "saturday": "Saturday", "sat": "Saturday",
+            "sunday": "Sunday", "sun": "Sunday",
+        }
+        sport_keywords = {
+            "run": "Run", "running": "Run", "jog": "Run",
+            "ride": "Ride", "bike": "Ride", "cycling": "Ride", "spin": "Ride",
+            "swim": "Swim", "swimming": "Swim",
+            "gym": "WeightTraining", "strength": "WeightTraining", "weight": "WeightTraining", "weights": "WeightTraining", "lift": "WeightTraining", "lifting": "WeightTraining",
+            "rest": "Other",
+        }
+        req_lower = user_request.lower()
+        mentioned_days = {
+            full for abbr, full in weekday_map.items()
+            if re.search(rf"\b{abbr}\b", req_lower)
+        }
+        mentioned_sports = [
+            sport for kw, sport in sport_keywords.items()
+            if re.search(rf"\b{kw}\w*\b", req_lower)
+        ]
+        # Preserve order while deduplicating
+        mentioned_sports = list(dict.fromkeys(mentioned_sports))
+
+        remove_verbs = ("remove", "delete", "clear", "drop", "cancel", "wipe")
+        replace_verbs = ("change", "replace", "swap", "update", "regenerate", "replan", "redo", "instead", "add", "create", "generate")
+        add_verbs = ("add", "schedule", "insert", "include", "put", "double")
+        targeted_replace_verbs = ("change", "replace", "swap", "update", "switch")
+
+        wants_remove_only = (
+            any(re.search(rf"\b{v}\w*\b", req_lower) for v in remove_verbs)
+            and not any(re.search(rf"\b{v}\w*\b", req_lower) for v in replace_verbs)
+        )
+
+        if wants_remove_only:
+            matched_ids: List[str] = []
+            for ew in existing_workouts:
+                ew_id = ew.get("id")
+                if not ew_id:
+                    continue
+                if mentioned_days or mentioned_sports:
+                    day_ok = (not mentioned_days) or (ew.get("weekday") in mentioned_days)
+                    sport_ok = (not mentioned_sports) or (ew.get("sport_type") in mentioned_sports)
+                    if day_ok and sport_ok:
+                        matched_ids.append(str(ew_id))
+                else:
+                    matched_ids.append(str(ew_id))
+
+            reasoning_msg = (
+                f"Identified {len(matched_ids)} planned workout(s) to remove from your schedule."
+                if matched_ids
+                else "No matching planned workouts were found in this window to remove."
+            )
+            return {
+                "reasoning": reasoning_msg,
+                "remove_workout_ids": matched_ids,
+                "workouts": [],
+            }
 
         # Sport-specific session library
         sport_templates: Dict[str, List[Dict[str, Any]]] = {
@@ -365,7 +437,81 @@ class AIClient:
             ],
         }
 
-        WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        def build_targeted_workout(day_offset: int, sport: str, idx: int = 0) -> Dict[str, Any]:
+            templates_for_sport = sport_templates.get(sport) or sport_templates["Run"]
+            template = templates_for_sport[idx % len(templates_for_sport)]
+            dur_match = re.search(r"(\d+)\s*(?:min|minute|minutes|m)\b", req_lower)
+            computed_duration = int(dur_match.group(1)) if dur_match else template["base_duration"]
+            computed_duration = max(15, computed_duration)
+            scale = computed_duration / max(15, template["base_duration"])
+            computed_distance = round((template.get("target_distance_m") or 0.0) * scale, 1)
+            warmup_min = max(5, int(computed_duration * 0.15))
+            cooldown_min = max(5, int(computed_duration * 0.12))
+            main_min = max(5, computed_duration - warmup_min - cooldown_min)
+            return {
+                "day_offset": day_offset,
+                "name": template["name"],
+                "sport_type": template["sport_type"],
+                "target_duration_min": computed_duration,
+                "target_distance_m": computed_distance,
+                "target_intensity": template["target_intensity"],
+                "plan_metadata": {
+                    "structure": {
+                        "warmup": {"duration_min": warmup_min, "description": template["structure"]["warmup"]["description"]},
+                        "main_set": [{"intervals": template["structure"]["main_set"][0]["intervals"], "duration_min": main_min, "intensity": template["structure"]["main_set"][0]["intensity"], "recovery_min": template["structure"]["main_set"][0].get("recovery_min", 2)}],
+                        "cooldown": {"duration_min": cooldown_min, "description": template["structure"]["cooldown"]["description"]},
+                    },
+                    "target_duration_min": computed_duration,
+                    "target_intensity": template["target_intensity"],
+                    "reasoning": template["reasoning"],
+                },
+            }
+
+        has_add_intent = any(re.search(rf"\b{v}\w*\b", req_lower) for v in add_verbs) or any(
+            p in req_lower for p in ("two workouts", "2 workouts", "second workout", "two-a-day")
+        )
+        has_targeted_replace = bool(mentioned_days) and any(
+            re.search(rf"\b{v}\w*\b", req_lower) for v in targeted_replace_verbs
+        ) and not any(w in req_lower for w in ("whole week", "entire week", "all workouts", "them"))
+        is_full_plan_request = bool(re.search(r"\b(whole week|entire week|full week|week plan|month|\d+\s*weeks?|\d+\s*days?|block)\b", req_lower))
+
+        if (has_add_intent or has_targeted_replace) and (mentioned_days or mentioned_sports) and not is_full_plan_request:
+            target_offsets: List[int] = []
+            for d in range(duration):
+                w_name = (start_date + timedelta(days=d)).strftime("%A") if start_date else WEEKDAY_NAMES[d % 7]
+                if not mentioned_days or w_name in mentioned_days:
+                    target_offsets.append(d)
+                    if not mentioned_days:
+                        break
+
+            wants_two_per_day = any(
+                p in req_lower for p in ("two workouts", "2 workouts", "double", "two-a-day")
+            )
+            sports_to_add = mentioned_sports or [preferred_sports[0] if preferred_sports else "Run"]
+            if wants_two_per_day and len(sports_to_add) == 1:
+                second_sport = next((s for s in preferred_sports if s != sports_to_add[0]), sports_to_add[0])
+                sports_to_add = [sports_to_add[0], second_sport]
+
+            targeted_workouts: List[Dict[str, Any]] = []
+            for offset in target_offsets:
+                for idx, sp in enumerate(sports_to_add):
+                    targeted_workouts.append(build_targeted_workout(offset, sp, idx=idx))
+
+            targeted_remove_ids: List[str] = []
+            if has_targeted_replace and not has_add_intent:
+                targeted_remove_ids = [
+                    str(ew["id"])
+                    for ew in existing_workouts
+                    if ew.get("id") and ew.get("weekday") in mentioned_days
+                ]
+
+            action_word = "Replaced" if targeted_remove_ids else "Added"
+            day_label = ", ".join(sorted(mentioned_days)) if mentioned_days else "your schedule"
+            return {
+                "reasoning": f"{action_word} {len(targeted_workouts)} workout(s) on {day_label} without overwriting the rest of your week.",
+                "remove_workout_ids": targeted_remove_ids,
+                "workouts": targeted_workouts,
+            }
 
         workouts = []
         for week_idx in range((duration + 6) // 7):
@@ -457,8 +603,19 @@ class AIClient:
             f"Tailored to {', '.join(preferred_sports)}, targeting ~{weekly_hours}h/week across max {max_days} days/week.{rest_fragment}{notes_fragment}"
         )
 
+        wants_double = any(
+            phrase in req_lower
+            for phrase in ("double", "second workout", "two-a-day", "2 workouts", "add another", "extra session")
+        )
+        remove_ids = (
+            [str(ew["id"]) for ew in existing_workouts if ew.get("id")]
+            if (existing_workouts and not wants_double)
+            else []
+        )
+
         return {
             "reasoning": reasoning_str,
+            "remove_workout_ids": remove_ids,
             "workouts": workouts,
         }
 

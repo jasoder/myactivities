@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 import uuid
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 
 from app.models.athlete import Athlete
@@ -41,6 +41,35 @@ async def generate_adaptive_plan(
 
     load_summary = await calculate_athlete_training_load(db, athlete_id, days_back=28)
 
+    # Fetch existing planned activities in the target window so the AI coach can modify or remove them
+    end_date = start_date + timedelta(days=duration_days)
+    existing_res = await db.execute(
+        select(Activity).where(
+            Activity.athlete_id == athlete_id,
+            Activity.status == ActivityStatus.planned,
+            Activity.planned_date.isnot(None),
+            Activity.planned_date >= start_date,
+            Activity.planned_date < end_date,
+        )
+    )
+    existing_planned = [
+        act
+        for act in existing_res.scalars().all()
+        if getattr(act, "id", None) is not None and getattr(act, "planned_date", None) is not None
+    ]
+    existing_by_id = {str(act.id): act for act in existing_planned}
+    existing_planned_payload = [
+        {
+            "id": str(act.id),
+            "date": act.planned_date.strftime("%Y-%m-%d"),
+            "weekday": act.planned_date.strftime("%A"),
+            "name": act.name,
+            "sport_type": act.sport_type,
+            "duration_min": act.duration_min or 0,
+        }
+        for act in existing_planned
+    ]
+
     preferred_sports = athlete.preferred_sports or ["Run", "Ride"]
     weekly_hours = athlete.weekly_training_hours if athlete.weekly_training_hours is not None else 6.0
     max_days = prefs.max_days_per_week if prefs and prefs.max_days_per_week is not None else 6
@@ -77,10 +106,18 @@ async def generate_adaptive_plan(
         f"3. FREQUENCY: Do NOT exceed {max_days} active training sessions in any 7-day period.\n"
         f"4. VOLUME: Total workout minutes across each 7-day week must approximately equal {int(weekly_hours * 60)} minutes ({weekly_hours} hours) ±10%.\n"
         f"5. FOCUS & NOTES: Incorporate the athlete's training focus ({split_notes}) and specific user request into session designs.\n"
-        "6. METRICS: Use the athlete's FTP, threshold pace, max HR, and LTHR to calibrate intensity zones and targets.\n\n"
+        "6. METRICS: Use the athlete's FTP, threshold pace, max HR, and LTHR to calibrate intensity zones and targets.\n"
+        "7. DYNAMIC MODIFICATIONS, ADDITIONS & REMOVALS: Review 'Existing Planned Workouts in Window'. "
+        "Athletes CAN have multiple workouts on the same day (e.g. a Run and a Gym session on Monday). "
+        "- If the athlete asks to ADD a session (e.g. 'add gym session for monday', 'add two workouts on Tuesday'), ONLY output the newly added session(s) in 'workouts' and leave 'remove_workout_ids' empty ([]). Do NOT rewrite or remove existing workouts on that day or other days. "
+        "- If the athlete asks to REMOVE, delete, or cancel workouts, include their exact 'id' strings in 'remove_workout_ids' and leave 'workouts' empty unless they also asked for new sessions. "
+        "- If the athlete asks to CHANGE or SWAP a specific day's workout, ONLY output the new workout(s) for that day and ONLY put the replaced workout's 'id' in 'remove_workout_ids'. "
+        "- If the athlete asks to generate or regenerate the FULL week/block, output the full schedule and include any replaced existing workout 'id' strings in 'remove_workout_ids' so they are not duplicated. "
+        "Never invent IDs; only use IDs from 'Existing Planned Workouts in Window'.\n\n"
         "Respond ONLY with a JSON object matching this schema:\n"
         "{\n"
-        '  "reasoning": "string explaining how the plan fulfills the athlete\'s preferences, volume targets, and periodization strategy",\n'
+        '  "reasoning": "string explaining how the plan fulfills the athlete\'s preferences, volume targets, and any removals/replacements",\n'
+        '  "remove_workout_ids": ["existing-workout-uuid"],\n'
         '  "workouts": [\n'
         "    {\n"
         '      "day_offset": 0,\n'
@@ -115,20 +152,35 @@ Athlete Request / Chat Prompt: {user_prompt or 'None specified'}
 Performance Metrics: FTP={athlete.ftp or 'N/A'}W, Pace={athlete.threshold_pace or 'N/A'} min/km, Weight={athlete.weight or 'N/A'}kg, MaxHR={athlete.max_hr or 'N/A'}bpm, LTHR={athlete.lthr or 'N/A'}bpm
 Sport Targets: {sport_targets}
 Recent 4-week load summary: {json.dumps(load_summary)}
+Existing Planned Workouts in Window: {json.dumps(existing_planned_payload)}
 Plan start date: {start_date.isoformat()}
 Duration: {duration_days} days
 
 Calendar Days to Schedule:
 {calendar_context}
 
-Generate the JSON {duration_days}-day schedule (day_offset 0 to {duration_days - 1}).
+Fulfill the athlete's request dynamically using the {duration_days}-day calendar above (day_offset 0 to {duration_days - 1}). If the request is a targeted addition, modification, or removal, only return the affected workouts/removals; if it is a full plan request, generate the full schedule.
 """
 
     client = AIClient()
     ai_output = await client.generate_json(system_prompt, user_prompt_text)
 
+    prompt_lower = (user_prompt or "").lower()
+    explicit_sport_terms = {
+        "Run": ("run", "running", "jog"),
+        "Ride": ("ride", "bike", "cycling", "spin"),
+        "Swim": ("swim", "swimming"),
+        "WeightTraining": ("gym", "strength", "weight", "weights", "lift", "lifting"),
+    }
+    explicitly_requested_sports = {
+        sport for sport, terms in explicit_sport_terms.items()
+        if any(t in prompt_lower for t in terms)
+    }
+    raw_workouts = ai_output.get("workouts", [])
+    is_targeted_edit = 0 < len(raw_workouts) < min(duration_days, 4)
+
     workouts = []
-    for item in ai_output.get("workouts", []):
+    for item in raw_workouts:
         day_offset = item.get("day_offset", 0)
         workout_date = start_date + timedelta(days=day_offset)
         duration_val = item.get("target_duration_min") or item.get("duration_min", 0)
@@ -138,9 +190,9 @@ Generate the JSON {duration_days}-day schedule (day_offset 0 to {duration_days -
         name_val = item.get("name", "Training Session")
         meta_val = item.get("plan_metadata", {})
 
-        # Guardrail: Enforce designated rest days
+        # Guardrail: Enforce designated rest days on full-plan generation (but allow explicit targeted edits)
         day_name = workout_date.strftime("%A")
-        if day_name in rest_days:
+        if day_name in rest_days and not is_targeted_edit:
             sport_val = "Other"
             name_val = "Rest & Recovery"
             duration_val = 0
@@ -151,8 +203,13 @@ Generate the JSON {duration_days}-day schedule (day_offset 0 to {duration_days -
                 "target_duration_min": 0,
                 "reasoning": f"Designated rest day ({day_name})",
             }
-        elif preferred_sports and sport_val != "Other" and sport_val not in preferred_sports:
-            # Guardrail: Never allow sports not in athlete's preferred sports list
+        elif (
+            preferred_sports
+            and sport_val != "Other"
+            and sport_val not in preferred_sports
+            and sport_val not in explicitly_requested_sports
+        ):
+            # Guardrail: Never allow rogue sports not in athlete's preferred sports list unless explicitly requested
             sport_val = preferred_sports[day_offset % len(preferred_sports)]
             if "Ride" in name_val or "Bike" in name_val or "Cycling" in name_val:
                 name_val = f"{sport_val} Training"
@@ -168,6 +225,46 @@ Generate the JSON {duration_days}-day schedule (day_offset 0 to {duration_days -
             "plan_metadata": meta_val,
         })
 
+    raw_remove_ids = [str(rid) for rid in (ai_output.get("remove_workout_ids") or [])]
+    valid_remove_ids: List[str] = []
+    seen_remove = set()
+    for rid in raw_remove_ids:
+        if rid in existing_by_id and rid not in seen_remove:
+            valid_remove_ids.append(rid)
+            seen_remove.add(rid)
+
+    # Guardrail: only auto-replace overlapping planned workouts when regenerating a full/bulk
+    # schedule (not for targeted additions or explicit double-session requests).
+    wants_add = any(
+        phrase in prompt_lower
+        for phrase in ("add ", "add a ", "add an ", "double", "second workout", "two-a-day", "2 workouts", "two workouts", "extra session", "plus ")
+    ) and not any(
+        phrase in prompt_lower
+        for phrase in ("replace", "instead", "regenerate", "replan")
+    )
+    if len(workouts) >= min(duration_days, 4) and existing_planned and not wants_add:
+        new_dates = {
+            datetime.fromisoformat(w["planned_date"]).date()
+            for w in workouts
+            if w.get("planned_date")
+        }
+        for act in existing_planned:
+            act_id_str = str(act.id)
+            if act.planned_date.date() in new_dates and act_id_str not in seen_remove:
+                valid_remove_ids.append(act_id_str)
+                seen_remove.add(act_id_str)
+
+    removed_workouts = [
+        {
+            "id": rid,
+            "name": existing_by_id[rid].name,
+            "sport_type": existing_by_id[rid].sport_type,
+            "planned_date": existing_by_id[rid].planned_date.isoformat(),
+            "duration_min": existing_by_id[rid].duration_min or 0,
+        }
+        for rid in valid_remove_ids
+    ]
+
     return {
         "athlete_id": str(athlete_id),
         "start_date": start_date.isoformat(),
@@ -175,6 +272,8 @@ Generate the JSON {duration_days}-day schedule (day_offset 0 to {duration_days -
         "duration_days": duration_days,
         "reasoning": ai_output.get("reasoning", "Adaptive progression based on recent volume and preferences."),
         "workouts": workouts,
+        "remove_workout_ids": valid_remove_ids,
+        "removed_workouts": removed_workouts,
     }
 
 
@@ -204,6 +303,37 @@ async def confirm_adaptive_plan(
             start_date = datetime.fromisoformat(raw_start)
     else:
         start_date = datetime.now(timezone.utc)
+
+    # Remove explicitly targeted planned workouts (or all planned workouts in window if requested)
+    raw_remove_ids = plan_data.get("remove_workout_ids") or []
+    target_remove_uuids: List[uuid.UUID] = []
+    for rid in raw_remove_ids:
+        try:
+            target_remove_uuids.append(rid if isinstance(rid, uuid.UUID) else uuid.UUID(str(rid)))
+        except (ValueError, TypeError):
+            continue
+
+    if target_remove_uuids:
+        await db.execute(
+            delete(Activity).where(
+                Activity.athlete_id == athlete_id,
+                Activity.status == ActivityStatus.planned,
+                Activity.id.in_(target_remove_uuids),
+            )
+        )
+
+    if plan_data.get("replace_existing_planned"):
+        duration_days = int(plan_data.get("duration_days") or 7)
+        end_date = start_date + timedelta(days=duration_days)
+        await db.execute(
+            delete(Activity).where(
+                Activity.athlete_id == athlete_id,
+                Activity.status == ActivityStatus.planned,
+                Activity.planned_date.isnot(None),
+                Activity.planned_date >= start_date,
+                Activity.planned_date < end_date,
+            )
+        )
 
     # Create WeekPlan container
     week_plan = WeekPlan(
