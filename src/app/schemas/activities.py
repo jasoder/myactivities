@@ -114,7 +114,9 @@ class ConfirmPlanRequest(BaseModel):
     week_start_date: Optional[datetime] = None
     duration_days: Optional[int] = 7
     reasoning: Optional[str] = "Adaptive training plan"
-    workouts: List[ConfirmWeekPlanWorkout]
+    workouts: List[ConfirmWeekPlanWorkout] = []
+    remove_workout_ids: Optional[List[UUID]] = None
+    replace_existing_planned: bool = False
 
     model_config = ConfigDict(
         json_schema_extra={

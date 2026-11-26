@@ -46,7 +46,10 @@ export const WorkoutDetailInline: React.FC<WorkoutDetailInlineProps> = ({ activi
       activityId,
       update: {
         status: newStatus as any,
-        actual_date: newStatus === "completed" ? new Date().toISOString() : undefined,
+        actual_date:
+          newStatus === "completed"
+            ? activity.actual_date || activity.planned_date || new Date().toISOString()
+            : undefined,
       },
     });
   };

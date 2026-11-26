@@ -492,6 +492,211 @@ async def test_ai_plan_guardrails_sanitize_rogue_sports():
             assert w["sport_type"] in ["Run", "WeightTraining"]
 
 
+@pytest.mark.asyncio
+async def test_ai_remove_specific_workout_and_replace_existing():
+    """Verify AI coach can remove specific planned workouts and replace existing ones without duplicating."""
+    from app.ai.planner_service import generate_adaptive_plan, confirm_adaptive_plan
+    from app.models.activities import ActivityStatus
+
+    monday_start = datetime(2026, 3, 2, 0, 0, 0, tzinfo=timezone.utc)
+    wednesday_dt = monday_start + timedelta(days=2)
+    mon_id = uuid.uuid4()
+    wed_id = uuid.uuid4()
+
+    existing_mon = mock_obj(
+        id=mon_id,
+        name="Easy Run",
+        sport_type="Run",
+        planned_date=monday_start,
+        duration_min=40,
+        status=ActivityStatus.planned,
+    )
+    existing_wed = mock_obj(
+        id=wed_id,
+        name="Tempo Run",
+        sport_type="Run",
+        planned_date=wednesday_dt,
+        duration_min=50,
+        status=ActivityStatus.planned,
+    )
+
+    mock_prefs = mock_obj(
+        max_days_per_week=6,
+        rest_day_preference=[],
+        split_notes="",
+        sport_targets={},
+    )
+    mock_athlete = mock_obj(
+        id=athlete_id,
+        name="Alex",
+        preferred_sports=["Run"],
+        weekly_training_hours=5.0,
+        training_preferences=mock_prefs,
+        ftp=None,
+        threshold_pace=None,
+        weight=70.0,
+        max_hr=None,
+        lthr=None,
+    )
+
+    def make_db():
+        db = AsyncMock()
+        # 1st execute: Athlete query -> scalar_one_or_none
+        # 2nd execute (inside calculate_athlete_training_load): activities -> scalars().all() = []
+        # 3rd execute: existing_planned -> scalars().all() = [existing_mon, existing_wed]
+        res_athlete = MagicMock(scalar_one_or_none=MagicMock(return_value=mock_athlete))
+        res_load = MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))))
+        res_existing = MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[existing_mon, existing_wed]))))
+        db.execute.side_effect = [res_athlete, res_load, res_existing]
+        return db
+
+    # 1. Remove only Wednesday's workout (including wording with "plan" / "planned")
+    with patch.dict("os.environ", {"AI_API_KEY": "", "AI_API_URL": ""}, clear=True):
+        remove_plan = await generate_adaptive_plan(
+            make_db(),
+            athlete_id,
+            start_date=monday_start,
+            duration_days=7,
+            user_prompt="Remove Wednesday's workout from my plan",
+        )
+
+    assert remove_plan["workouts"] == []
+    assert remove_plan["remove_workout_ids"] == [str(wed_id)]
+    assert len(remove_plan["removed_workouts"]) == 1
+    assert remove_plan["removed_workouts"][0]["name"] == "Tempo Run"
+
+    # 2. Change/regenerate this week's workouts -> existing overlapping planned workouts are marked for removal
+    with patch.dict("os.environ", {"AI_API_KEY": "", "AI_API_URL": ""}, clear=True):
+        replace_plan = await generate_adaptive_plan(
+            make_db(),
+            athlete_id,
+            start_date=monday_start,
+            duration_days=7,
+            user_prompt="Change this week to easy aerobic runs",
+        )
+
+    assert len(replace_plan["workouts"]) == 7
+    assert set(replace_plan["remove_workout_ids"]) == {str(mon_id), str(wed_id)}
+
+    # 3. Confirming removal-only plan executes delete and commits without adding workouts
+    confirm_db = AsyncMock()
+    confirm_db.add = MagicMock()
+    await confirm_adaptive_plan(
+        confirm_db,
+        athlete_id,
+        {
+            "start_date": monday_start.isoformat(),
+            "duration_days": 7,
+            "reasoning": "Removed Wednesday workout",
+            "remove_workout_ids": [str(wed_id)],
+            "workouts": [],
+        },
+    )
+    assert confirm_db.execute.await_count == 1
+    confirm_db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_ai_dynamic_add_and_two_workouts_per_day():
+    """Verify AI coach can dynamically add a gym session on Monday or two workouts on one day without rewriting the week."""
+    from app.ai.planner_service import generate_adaptive_plan
+    from app.models.activities import ActivityStatus
+
+    monday_start = datetime(2026, 3, 2, 0, 0, 0, tzinfo=timezone.utc)
+    mon_id = uuid.uuid4()
+    wed_id = uuid.uuid4()
+
+    existing_mon = mock_obj(
+        id=mon_id,
+        name="Easy Run",
+        sport_type="Run",
+        planned_date=monday_start,
+        duration_min=40,
+        status=ActivityStatus.planned,
+    )
+    existing_wed = mock_obj(
+        id=wed_id,
+        name="Tempo Run",
+        sport_type="Run",
+        planned_date=monday_start + timedelta(days=2),
+        duration_min=50,
+        status=ActivityStatus.planned,
+    )
+
+    mock_prefs = mock_obj(
+        max_days_per_week=6,
+        rest_day_preference=["Monday"],
+        split_notes="",
+        sport_targets={},
+    )
+    mock_athlete = mock_obj(
+        id=athlete_id,
+        name="Alex",
+        preferred_sports=["Run", "Ride"],
+        weekly_training_hours=6.0,
+        training_preferences=mock_prefs,
+        ftp=None,
+        threshold_pace=None,
+        weight=70.0,
+        max_hr=None,
+        lthr=None,
+    )
+
+    def make_db():
+        db = AsyncMock()
+        res_athlete = MagicMock(scalar_one_or_none=MagicMock(return_value=mock_athlete))
+        res_load = MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))))
+        res_existing = MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[existing_mon, existing_wed]))))
+        db.execute.side_effect = [res_athlete, res_load, res_existing]
+        return db
+
+    # 1. Add gym session on Monday -> only 1 WeightTraining workout on Monday, 0 removals
+    with patch.dict("os.environ", {"AI_API_KEY": "", "AI_API_URL": ""}, clear=True):
+        add_gym_plan = await generate_adaptive_plan(
+            make_db(),
+            athlete_id,
+            start_date=monday_start,
+            duration_days=7,
+            user_prompt="Add a gym session for Monday",
+        )
+
+    assert len(add_gym_plan["workouts"]) == 1
+    assert add_gym_plan["workouts"][0]["day_offset"] == 0
+    assert add_gym_plan["workouts"][0]["sport_type"] == "WeightTraining"
+    assert add_gym_plan["remove_workout_ids"] == []
+
+    # 2. Ask for two workouts on Tuesday -> 2 workouts on Tuesday, 0 removals
+    with patch.dict("os.environ", {"AI_API_KEY": "", "AI_API_URL": ""}, clear=True):
+        two_a_day_plan = await generate_adaptive_plan(
+            make_db(),
+            athlete_id,
+            start_date=monday_start,
+            duration_days=7,
+            user_prompt="Add two workouts on Tuesday",
+        )
+
+    assert len(two_a_day_plan["workouts"]) == 2
+    assert all(w["day_offset"] == 1 for w in two_a_day_plan["workouts"])
+    assert two_a_day_plan["remove_workout_ids"] == []
+
+    # 3. Targeted swap on Monday only -> replaces Monday only, leaves Wednesday alone
+    with patch.dict("os.environ", {"AI_API_KEY": "", "AI_API_URL": ""}, clear=True):
+        swap_mon_plan = await generate_adaptive_plan(
+            make_db(),
+            athlete_id,
+            start_date=monday_start,
+            duration_days=7,
+            user_prompt="Change Monday's workout to a swim",
+        )
+
+    assert len(swap_mon_plan["workouts"]) == 1
+    assert swap_mon_plan["workouts"][0]["day_offset"] == 0
+    assert swap_mon_plan["workouts"][0]["sport_type"] == "Swim"
+    assert swap_mon_plan["remove_workout_ids"] == [str(mon_id)]
+
+
+
+
 
 
 
